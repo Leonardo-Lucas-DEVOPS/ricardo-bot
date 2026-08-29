@@ -1,0 +1,24 @@
+# Segredos — NUNCA versionar
+.env
+
+# Sessão do WhatsApp: credenciais do chip. Vazar isso é entregar o número.
+dados/sessao-whatsapp/
+
+# Banco e backups: conversas de leads = dado pessoal. Fora do git.
+dados/*.db
+dados/*.db-journal
+dados/*.db-wal
+dados/*.db-shm
+dados/backup/
+
+# Logs
+logs/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Windows / editor
+Thumbs.db
+desktop.ini
+.vscode/

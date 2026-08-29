@@ -1,0 +1,22 @@
+{
+  "name": "ricardo-bot",
+  "version": "0.1.0",
+  "description": "SDR de WhatsApp com IA - atende leads de trafego pago 24h",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "painel": "node src/painel/index.js",
+    "teste": "node --test"
+  },
+  "dependencies": {
+    "@google/genai": "2.17.1",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "10.3.1",
+    "qrcode-terminal": "0.12.0"
+  }
+}
