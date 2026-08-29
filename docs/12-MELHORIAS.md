@@ -118,7 +118,7 @@ não ler JSON. *(consertado)*
 
 Duas mensagens do mesmo lead com ~40s de diferença viraram dois grupos
 legítimos — mas o lead recebeu **uma** resposta e você recebeu **dois**
-alertas. Falta juntar avisos por contato.
+alertas. *(consertado: um aviso por contato a cada 5 minutos)*
 
 ### 🟡 O lead espera em silêncio
 
@@ -130,6 +130,8 @@ A conta do que o lead vive hoje:
 | IA pensando (M3) | 2–5s | **nada** |
 | Disfarce (M5) | ~15–25s | "digitando…" |
 
+*(consertado: o "digitando…" agora liga assim que o robô começa a pensar, e a espera do agrupamento virou adaptativa — ver )*
+
 **30 a 45 segundos até a resposta, com os primeiros ~20 em silêncio total.**
 
 O diagnóstico importa: **o problema não é a demora, é o silêncio.** Uma
@@ -140,16 +142,16 @@ segundos de nada é que soa a máquina.
 
 # Parte 3 — O backlog
 
-## P0 · Antes de apontar anúncio
+## P0 · Antes de apontar anúncio — ✅ **fechado em 29/08**
 
 | | O quê | Por quê |
 |---|---|---|
-| ⬜ | **"digitando…" desde o pensamento** | Maior ganho de percepção pelo menor risco. Não encurta nada, só tira o silêncio. |
-| ⬜ | **Presença real (`composing`/`paused`)** | O WhatsApp diz se ele está digitando. Melhor que qualquer temporizador. |
-| ⬜ | **Heurística de completude** | Rede pra quando a presença não vier (muita gente desliga "online"). |
-| ⬜ | **Juntar alertas por contato** | Parar o spam no seu WhatsApp. |
-| ⬜ | **M12 — backup do banco** | Hoje um problema de disco leva conversas e pedidos junto. |
-| ⬜ | **Primeiro commit** | Os prompts são o ativo que mais muda e não têm histórico. |
+| ✅ | **"digitando…" desde o pensamento** | Maior ganho de percepção pelo menor risco. Não encurta nada, só tira o silêncio. |
+| ✅ | **Presença real (`composing`/`paused`)** | O WhatsApp diz se ele está digitando. Melhor que qualquer temporizador. |
+| ✅ | **Heurística de completude** | Rede pra quando a presença não vier (muita gente desliga "online"). |
+| ✅ | **Juntar alertas por contato** | Parar o spam no seu WhatsApp. |
+| ✅ | **M12 — backup do banco** | Hoje um problema de disco leva conversas e pedidos junto. |
+| ✅ | **Primeiro commit** | Os prompts são o ativo que mais muda e não têm histórico. |
 
 ## P1 · Antes de escalar
 
@@ -157,14 +159,14 @@ segundos de nada é que soa a máquina.
 |---|---|---|
 | ⬜ | **M7 Cutucador** | Follow-up de 30min/2h + recompra de 7 dias. Dinheiro na mesa. O doc 08 chama de módulo mais perigoso — todos os freios são obrigatórios. |
 | ⬜ | **M10 — relatório diário** | Enxergar se está agressivo demais **antes** do WhatsApp enxergar. |
-| ⬜ | **Ritmo por estágio da conversa** | Em `qualificando` as trocas são curtas; em objeção ele escreve mais. Ajuste fino. |
+| ✅ | **Ritmo por estágio da conversa** | Em `qualificando` as trocas são curtas; em objeção ele escreve mais. Ajuste fino. |
 | ⬜ | **Atualizar docs 01/05/08** | Hoje eles prometem custo zero e citam um modelo aposentado. |
 
 ## P2 · Polimento de entrega
 
 | | O quê |
 |---|---|
-| ⬜ | Guia de operação em linguagem de dono — o que olhar todo dia, o que fazer quando cair |
+| ✅ | Guia de operação — virou o **doc 13** |
 | ⬜ | Aba de eventos no painel (hoje só dá pra ver por SQL) |
 | ⬜ | Rotação de chaves com cooldown *(iniciado; ver Parte 4)* |
 
