@@ -31,6 +31,8 @@ Custo de operação: **R$ 0**.
 | **08** | [RISCOS](08-RISCOS.md) | Banimento, LGPD, teto do Gemini, quedas | **Leia.** É o documento que evita prejuízo. |
 | **09** | [ROTEIRO](09-ROTEIRO.md) | As 5 fases de construção e como testar cada uma | Na hora de começar a construir |
 | **10** | [PENDENCIAS](10-PENDENCIAS.md) | O que **só você** pode decidir, e o que trava o quê | Agora. É a sua lista de tarefas. |
+| **13** | [GUIA-DO-RICARDO](13-GUIA-DO-RICARDO.md) | **O único que você precisa no dia a dia.** Como ligar, o que olhar, o que fazer quando dá errado. | Todo dia. |
+| **12** | [MELHORIAS](12-MELHORIAS.md) | O que a produção corrigiu no planejamento, e o backlog do que falta | Quando for planejar a próxima rodada |
 | **11** | [CONTRATOS](11-CONTRATOS.md) | O esquema do banco, o contrato da IA e as regras de decisão. Onde "mais ou menos" vira bug caro. | Antes de programar. É pra quem escreve código. |
 
 ---
