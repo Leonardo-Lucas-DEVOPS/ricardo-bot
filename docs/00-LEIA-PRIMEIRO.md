@@ -1,9 +1,9 @@
 # Ricardo Bot — Dossiê de Planejamento
 
-> **Estado em 29/08/2026: planejamento fechado, construção começando.**
-> O doc **11** fechou as nove indefinições técnicas que faltavam e o doc **09** foi corrigido
-> em três pontos. A Fase 1 já pode ser construída — ela não depende de nenhuma pendência
-> de negócio do doc 10.
+> **Estado em 29/08/2026: construído e atendendo.**
+> As fases 1 a 3 estão de pé, mais o painel. O robô já atendeu lead de verdade.
+> Falta o follow-up (M7). O que a produção corrigiu está no doc **12**;
+> como operar no dia a dia, no doc **13**.
 
 Escrito em 19/08/2026. Revisado em 29/08/2026.
 
@@ -13,7 +13,9 @@ Escrito em 19/08/2026. Revisado em 29/08/2026.
 
 Um robô que fica ligado 24 horas numa máquina em casa, atende no WhatsApp os leads que chegam pelo tráfego pago, conversa como um consultor (não como formulário), descobre **nicho / região / PF-PJ**, recomenda o pacote de leads certo, fecha o pedido e passa o bastão pra você.
 
-Custo de operação: **R$ 0**.
+Custo de operação: **entre R$ 0 e ~US$ 10/mês**, dependendo da cota gratuita
+que a sua conta do Google tiver. O Google parou de publicar esses limites e
+já cortou a faixa gratuita sem aviso — ver doc **11, §2** e doc **12**.
 
 ---
 
@@ -31,9 +33,9 @@ Custo de operação: **R$ 0**.
 | **08** | [RISCOS](08-RISCOS.md) | Banimento, LGPD, teto do Gemini, quedas | **Leia.** É o documento que evita prejuízo. |
 | **09** | [ROTEIRO](09-ROTEIRO.md) | As 5 fases de construção e como testar cada uma | Na hora de começar a construir |
 | **10** | [PENDENCIAS](10-PENDENCIAS.md) | O que **só você** pode decidir, e o que trava o quê | Agora. É a sua lista de tarefas. |
-| **13** | [GUIA-DO-RICARDO](13-GUIA-DO-RICARDO.md) | **O único que você precisa no dia a dia.** Como ligar, o que olhar, o que fazer quando dá errado. | Todo dia. |
-| **12** | [MELHORIAS](12-MELHORIAS.md) | O que a produção corrigiu no planejamento, e o backlog do que falta | Quando for planejar a próxima rodada |
 | **11** | [CONTRATOS](11-CONTRATOS.md) | O esquema do banco, o contrato da IA e as regras de decisão. Onde "mais ou menos" vira bug caro. | Antes de programar. É pra quem escreve código. |
+| **12** | [MELHORIAS](12-MELHORIAS.md) | O que a produção corrigiu no planejamento, e o backlog do que falta | Quando for planejar a próxima rodada |
+| **13** | [GUIA-DO-RICARDO](13-GUIA-DO-RICARDO.md) | **O único que você precisa no dia a dia.** Como ligar, o que olhar, o que fazer quando dá errado. | Todo dia. |
 
 ---
 
