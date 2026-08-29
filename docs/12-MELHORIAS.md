@@ -130,7 +130,9 @@ A conta do que o lead vive hoje:
 | IA pensando (M3) | 2–5s | **nada** |
 | Disfarce (M5) | ~15–25s | "digitando…" |
 
-*(consertado: o "digitando…" agora liga assim que o robô começa a pensar, e a espera do agrupamento virou adaptativa — ver )*
+*(consertado: o "digitando…" agora liga assim que o robô começa a pensar, e a
+espera do agrupamento virou adaptativa — presença do WhatsApp primeiro,
+formato da mensagem como rede. Ver `src/recepcao/ritmo.js`.)*
 
 **30 a 45 segundos até a resposta, com os primeiros ~20 em silêncio total.**
 
