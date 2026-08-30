@@ -60,7 +60,13 @@ button,input,select,textarea{font:inherit;color:inherit}
 .marca .pt{width:8px;height:8px;border-radius:50%;background:var(--n300)}
 .marca .pt.viva{background:var(--acento);box-shadow:0 0 0 3px var(--acento-fraco)}
 .topo .fim{margin-left:auto;display:flex;align-items:center;gap:10px}
-.abas{display:flex;gap:2px;max-width:900px;margin:0 auto;overflow-x:auto}
+/* overflow-y:hidden é obrigatório: pela regra do CSS, definir overflow-x
+   como auto faz o overflow-y virar auto junto. Com o margin-bottom:-1px
+   dos botões sobra 1px de altura e o navegador desenha uma barra de
+   rolagem vertical fantasma, com setinhas e tudo. */
+.abas{display:flex;gap:2px;max-width:900px;margin:0 auto;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.abas::-webkit-scrollbar{display:none}
 .abas button{background:none;border:0;padding:0 2px 11px;margin-right:20px;
   color:var(--txt2);cursor:pointer;font-size:14px;white-space:nowrap;
   border-bottom:2px solid transparent;margin-bottom:-1px}
@@ -169,7 +175,7 @@ textarea{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
 /* ─── QR e terminal ──────────────────────────────────────────────────── */
 .qr{font-family:ui-monospace,Consolas,monospace;font-size:9px;line-height:9px;
   white-space:pre;text-align:center;background:#fff;color:#000;padding:20px;
-  border-radius:var(--r);overflow-x:auto}
+  border-radius:var(--r);overflow-x:auto;overflow-y:hidden}
 .terminal{background:var(--n900);color:#d8dade;font-family:ui-monospace,Consolas,monospace;
   font-size:12px;line-height:1.65;padding:16px;border-radius:var(--r);
   height:440px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
