@@ -14,7 +14,9 @@ import { log } from '../nucleo/log.js';
 
 const executar = promisify(execFile);
 
-const LANCADOR = resolve(RAIZ, 'Iniciar Ricardo Bot.bat');
+// O .vbs sobe tudo SEM janela preta. O .bat continua existindo pra
+// quando você quiser ver a saída crua (depuração).
+const LANCADOR = resolve(RAIZ, 'Ricardo Bot.vbs');
 const ICONE = resolve(RAIZ, 'assets', 'ricardo.ico');
 
 /**

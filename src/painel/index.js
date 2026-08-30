@@ -21,7 +21,7 @@ import { paraPainel, salvarEnv, faltando, lerEnv } from './env.js';
 import { CURADOS, PADRAO, testarChave } from './modelos.js';
 import { criarAtalho, atalhoExiste } from './atalho.js';
 import { listarBackups } from '../zelador/index.js';
-import { estado } from './estado.js';
+import { estado, lerLinhas, limparLinhas } from './estado.js';
 import { pagina } from './pagina.js';
 
 const SO_LOCALHOST = '127.0.0.1';
@@ -101,6 +101,25 @@ async function rotear(req, res) {
     });
   }
 
+  // Liga/desliga o robô sem derrubar o painel.
+  if (rota === '/api/motor' && req.method === 'POST') {
+    const { acao } = await lerCorpo(req);
+    const fn = { ligar: estado.acoes.ligar, desligar: estado.acoes.desligar,
+                 reiniciar: estado.acoes.reiniciar }[acao];
+    if (!fn) return responder(res, 400, { ok: false, mensagem: 'ação desconhecida' });
+    return responder(res, 200, fn());
+  }
+
+  // O log do robô, que roda com a janela escondida.
+  if (rota === '/api/terminal') {
+    if (req.method === 'POST') {
+      limparLinhas();
+      return responder(res, 200, { ok: true });
+    }
+    const desde = Number(url.searchParams.get('desde') ?? 0);
+    return responder(res, 200, lerLinhas(Number.isFinite(desde) ? desde : 0));
+  }
+
   if (rota === '/api/modelos') {
     return responder(res, 200, { curados: CURADOS, padrao: PADRAO });
   }
@@ -129,11 +148,7 @@ async function rotear(req, res) {
   }
 
   if (rota === '/api/reiniciar' && req.method === 'POST') {
-    responder(res, 200, { ok: true });
-    log.warn('reinício pedido pelo painel');
-    // 42 é o combinado com o iniciar.bat: sobe de novo em vez de encerrar.
-    setTimeout(() => process.exit(42), 250);
-    return;
+    return responder(res, 200, estado.acoes.reiniciar?.() ?? { ok: false });
   }
 
   responder(res, 404, { erro: 'não existe' });
