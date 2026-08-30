@@ -18,9 +18,28 @@ mkdirSync(config.pastas.dados, { recursive: true });
 
 export const db = new DatabaseSync(config.banco);
 
-db.exec('PRAGMA journal_mode = WAL');
-db.exec('PRAGMA foreign_keys = ON');
+// A ORDEM AQUI IMPORTA, e custou um bug pra descobrir.
+//
+// `busy_timeout` vem PRIMEIRO: sem ele, qualquer PRAGMA que precise de lock
+// exclusivo falha na hora em vez de esperar.
 db.exec('PRAGMA busy_timeout = 5000');
+db.exec('PRAGMA foreign_keys = ON');
+
+// Trocar o journal para WAL exige lock exclusivo. Como o painel e o robô são
+// dois processos que abrem este banco quase ao mesmo tempo, o segundo a subir
+// levava `SQLITE_BUSY: database is locked` e morria.
+//
+// WAL é propriedade PERSISTENTE do arquivo: uma vez ligado, fica. Então se
+// outro processo já ligou, falhar aqui não é problema nenhum — o modo já é o
+// que queremos.
+try {
+  db.exec('PRAGMA journal_mode = WAL');
+} catch (erro) {
+  const modo = db.prepare('PRAGMA journal_mode').get()?.journal_mode;
+  if (String(modo).toLowerCase() !== 'wal') {
+    log.warn(`não consegui ligar o WAL (modo atual: ${modo}) — ${erro.message}`);
+  }
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS esquema (
