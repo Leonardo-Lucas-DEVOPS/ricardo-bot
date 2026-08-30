@@ -9,7 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { config } from '../config.js';
 import { agora } from '../nucleo/relogio.js';
-import { normalizar } from '../nucleo/telefone.js';
+import { normalizar, paraJid } from '../nucleo/telefone.js';
 import { log } from '../nucleo/log.js';
 
 const VERSAO_ESQUEMA = 1;
@@ -161,9 +161,21 @@ export const buscarContato = (tel) => selContato.get(normalizar(tel)) ?? null;
  * Nenhum outro caminho do código pode marcar essa coluna: nem comando,
  * nem painel, nem importação. É a trava do doc 03 escrita como regra de banco.
  */
-export function registrarQuemEscreveu(jid, nome = null) {
-  const telefone = normalizar(jid);
-  if (!telefone) return null;
+export function registrarQuemEscreveu({ telefone, jid, nome = null }) {
+  // O telefone canônico e o endereço de envio são DUAS COISAS e precisam
+  // chegar separados (doc 11, §5: procura por telefone, envia por jid).
+  //
+  // Antes esta função derivava o telefone do próprio jid. Funcionava até o
+  // WhatsApp começar a entregar contatos por LID: o contato nascia com a
+  // chave do LID enquanto as mensagens eram gravadas sob o telefone real.
+  // Dois estragos, e o segundo é o grave:
+  //
+  //   1. `FOREIGN KEY constraint failed` — visto em produção
+  //   2. `ja_escreveu` gravado numa chave e consultado noutra, ou seja: a
+  //      trava de segurança recusaria responder um lead legítimo
+  const chave = normalizar(telefone || jid);
+  if (!chave) return null;
+  const endereco = jid || paraJid(chave);
   const t = agora();
 
   db.prepare(
@@ -176,9 +188,9 @@ export function registrarQuemEscreveu(jid, nome = null) {
        ultima_mensagem = excluded.ultima_mensagem,
        ja_escreveu     = 1,
        atualizado_em   = excluded.atualizado_em`,
-  ).run(telefone, jid, nome, t, t, t, t);
+  ).run(chave, endereco, nome, t, t, t, t);
 
-  return selContato.get(telefone);
+  return selContato.get(chave);
 }
 
 /**

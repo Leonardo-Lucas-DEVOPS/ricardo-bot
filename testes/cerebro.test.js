@@ -11,6 +11,7 @@ import {
   lerTabela, conferirPrecos, valorDoPacote, paraCentavos, formatarReal,
 } from '../src/cerebro/precos.js';
 import { preencherVariaveis } from '../src/persona/index.js';
+import { config } from '../src/config.js';
 
 const TABELA_MD = `
 # TABELA DE PACOTES
@@ -187,7 +188,7 @@ test('lead novo, sem ficha: só a mensagem', () => {
 test('variáveis são preenchidas do .env', () => {
   const t = preencherVariaveis('PIX: {{CHAVE_PIX}} · até as {{HORA_LIMITE}}h');
   assert.ok(!t.includes('{{CHAVE_PIX}}'));
-  assert.ok(t.includes('até as 21h'));
+  assert.ok(t.includes('até as ' + config.negocio.horaLimiteEntrega + 'h'));
 });
 
 test('variável desconhecida fica como está, não vira "undefined"', () => {

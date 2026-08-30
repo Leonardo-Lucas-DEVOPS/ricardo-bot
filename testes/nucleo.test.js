@@ -13,7 +13,10 @@ import assert from 'node:assert/strict';
 import { normalizar, mesmoNumero, digitosDoJid, paraExibir } from '../src/nucleo/telefone.js';
 import { pediuParaParar, achatar } from '../src/seguranca/index.js';
 import { calcularEspera, quebrarEmBaloes } from '../src/disfarce/index.js';
-import { partes, ehNoite, passouDoCorte, ehFimDeSemana } from '../src/nucleo/relogio.js';
+import {
+  partes, ehNoite, passouDoCorte, ehFimDeSemana, instanteLocal,
+} from '../src/nucleo/relogio.js';
+import { config } from '../src/config.js';
 
 // ---------------------------------------------------------------------------
 test('telefone: extrai dígitos do JID', () => {
@@ -133,11 +136,18 @@ test('relógio: decide no fuso de São Paulo, não no da máquina', () => {
   assert.equal(p.hora, 21);
 });
 
-test('relógio: o corte das 21h', () => {
-  // 20:59 em SP = 23:59 UTC
-  assert.equal(passouDoCorte('2026-08-28T23:59:00.000Z'), false);
-  // 21:00 em SP = 00:00 UTC do dia seguinte
-  assert.equal(passouDoCorte('2026-08-29T00:00:00.000Z'), true);
+test('relógio: a hora de corte', () => {
+  // A hora vem do .env e o dono muda quando quiser — o teste prova o
+  // COMPORTAMENTO (um minuto antes ainda é hoje, na hora cheia já passou),
+  // não o valor configurado. Cravar 21 aqui fazia o teste quebrar quando a
+  // configuração mudava, não o código.
+  const H = config.negocio.horaLimiteEntrega;
+  const emSP = (hora, minuto) =>
+    instanteLocal({ ano: 2026, mes: 8, dia: 28, hora, minuto });
+
+  assert.equal(passouDoCorte(emSP(H - 1, 59)), false, 'um minuto antes já passou');
+  assert.equal(passouDoCorte(emSP(H, 0)), true, 'na hora cheia ainda não passou');
+  assert.equal(passouDoCorte(emSP(H, 30)), true);
 });
 
 test('relógio: modo noturno das 22h às 7h', () => {

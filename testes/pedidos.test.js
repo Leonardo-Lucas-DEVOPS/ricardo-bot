@@ -1,7 +1,7 @@
 // Testes do M8 — o cálculo de prazo.
 //
-// É a conta mais fácil de errar do projeto inteiro: mistura fuso, corte das
-// 21h e fim de semana. Errar aqui significa prometer entrega num dia e
+// É a conta mais fácil de errar do projeto inteiro: mistura fuso, hora de
+// corte e fim de semana. Errar aqui significa prometer entrega num dia e
 // entregar noutro — o tipo de erro que o cliente percebe antes de você.
 
 import test from 'node:test';
@@ -9,6 +9,12 @@ import assert from 'node:assert/strict';
 
 import { calcularPrazo, ehHoje } from '../src/pedidos/index.js';
 import { partes, instanteLocal, somarDias } from '../src/nucleo/relogio.js';
+import { config } from '../src/config.js';
+
+// A hora de corte vem do .env e o dono muda quando quiser. Testar contra um
+// 21 cravado faz o teste quebrar quando a CONFIGURAÇÃO muda, não o código.
+const H = config.negocio.horaLimiteEntrega;
+const hh = String(H).padStart(2, '0');
 
 // Ajuda a ler os testes: "que dia e hora dá em São Paulo?"
 const sp = (iso) => {
@@ -38,56 +44,58 @@ test('somarDias anda no calendário sem escorregar no fuso', () => {
 });
 
 // ---------------------------------------------------------------------------
-//  O corte das 21h
+//  A hora de corte
 // ---------------------------------------------------------------------------
 
-test('fechou às 15h de uma terça → entrega HOJE às 21h', () => {
-  // terça 25/08/2026, 15h SP = 18h UTC
-  const prazo = calcularPrazo(new Date('2026-08-25T18:00:00.000Z'));
-  assert.equal(sp(prazo), '25/08 21h (ter)');
-  assert.ok(ehHoje(prazo, new Date('2026-08-25T18:00:00.000Z')));
+// Terça 25/08/2026, dado em hora de São Paulo. Tudo relativo à hora de corte
+// configurada: o teste prova o COMPORTAMENTO, não o número que está no .env.
+const terca = (hora, minuto = 0) =>
+  new Date(instanteLocal({ ano: 2026, mes: 8, dia: 25, hora, minuto }));
+
+test('fechou de manhã numa terça → entrega HOJE', () => {
+  const quando = terca(H - 1);   // uma hora antes do corte, qualquer que ele seja
+  const prazo = calcularPrazo(quando);
+  assert.equal(sp(prazo), '25/08 ' + hh + 'h (ter)');
+  assert.ok(ehHoje(prazo, quando));
 });
 
-test('fechou às 22h de uma terça → entrega AMANHÃ', () => {
-  // terça 25/08, 22h SP = quarta 26/08 01:00 UTC
-  const prazo = calcularPrazo(new Date('2026-08-26T01:00:00.000Z'));
-  assert.equal(sp(prazo), '26/08 21h (qua)');
-  assert.equal(ehHoje(prazo, new Date('2026-08-26T01:00:00.000Z')), false);
+test('fechou depois do corte → entrega no dia seguinte', () => {
+  const quando = terca(H, 30);   // H+1 estouraria com corte às 23h
+  const prazo = calcularPrazo(quando);
+  assert.equal(sp(prazo), '26/08 ' + hh + 'h (qua)');
+  assert.equal(ehHoje(prazo, quando), false);
 });
 
-test('exatamente 21h já conta como depois do corte', () => {
-  const prazo = calcularPrazo(new Date('2026-08-26T00:00:00.000Z')); // 21h em SP
-  assert.equal(sp(prazo), '26/08 21h (qua)');
+test('exatamente na hora de corte já conta como depois', () => {
+  assert.equal(sp(calcularPrazo(terca(H, 0))), '26/08 ' + hh + 'h (qua)');
 });
 
-test('20h59 ainda entrega hoje — o minuto que separa dois dias', () => {
-  const prazo = calcularPrazo(new Date('2026-08-25T23:59:00.000Z')); // 20:59 em SP
-  assert.equal(sp(prazo), '25/08 21h (ter)');
+test('um minuto antes do corte ainda entrega hoje', () => {
+  assert.equal(sp(calcularPrazo(terca(H - 1, 59))), '25/08 ' + hh + 'h (ter)');
 });
 
 // ---------------------------------------------------------------------------
 //  Fim de semana — pendência 12, padrão conservador
 // ---------------------------------------------------------------------------
 
-test('fechou sexta às 22h → entrega SEGUNDA, não sábado', () => {
-  // sexta 28/08/2026 às 22h SP = sábado 29/08 01:00 UTC
-  const prazo = calcularPrazo(new Date('2026-08-29T01:00:00.000Z'));
-  assert.equal(sp(prazo), '31/08 21h (seg)');
+// Mesmo raciocínio: dia do calendário de SP + hora relativa ao corte.
+const emSP = (dia, hora, minuto = 0) =>
+  new Date(instanteLocal({ ano: 2026, mes: 8, dia, hora, minuto }));
+
+test('fechou sexta depois do corte → entrega SEGUNDA, não sábado', () => {
+  assert.equal(sp(calcularPrazo(emSP(28, H, 30))), '31/08 ' + hh + 'h (seg)');
 });
 
-test('fechou sábado de manhã → entrega segunda', () => {
-  const prazo = calcularPrazo(new Date('2026-08-29T13:00:00.000Z')); // sáb 10h SP
-  assert.equal(sp(prazo), '31/08 21h (seg)');
+test('fechou sábado → entrega segunda', () => {
+  assert.equal(sp(calcularPrazo(emSP(29, H, 30))), '31/08 ' + hh + 'h (seg)');
 });
 
-test('fechou domingo à noite → entrega segunda', () => {
-  const prazo = calcularPrazo(new Date('2026-08-31T01:00:00.000Z')); // dom 22h SP
-  assert.equal(sp(prazo), '31/08 21h (seg)');
+test('fechou domingo → entrega segunda', () => {
+  assert.equal(sp(calcularPrazo(emSP(30, H, 30))), '31/08 ' + hh + 'h (seg)');
 });
 
-test('fechou quinta às 15h → entrega quinta mesmo', () => {
-  const prazo = calcularPrazo(new Date('2026-08-27T18:00:00.000Z'));
-  assert.equal(sp(prazo), '27/08 21h (qui)');
+test('fechou quinta antes do corte → entrega quinta mesmo', () => {
+  assert.equal(sp(calcularPrazo(emSP(27, H - 1, 0))), '27/08 ' + hh + 'h (qui)');
 });
 
 test('o prazo nunca cai num sábado ou domingo', () => {
@@ -97,7 +105,7 @@ test('o prazo nunca cai num sábado ou domingo', () => {
     const prazo = calcularPrazo(new Date(inicio + h * 3600_000));
     const dia = partes(prazo).diaDaSemana;
     assert.ok(dia !== 0 && dia !== 6, `caiu no fim de semana: ${sp(prazo)}`);
-    assert.equal(partes(prazo).hora, 21, `não é 21h: ${sp(prazo)}`);
+    assert.equal(partes(prazo).hora, H, `fora da hora de corte: ${sp(prazo)}`);
   }
 });
 

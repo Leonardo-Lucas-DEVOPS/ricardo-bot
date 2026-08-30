@@ -98,7 +98,7 @@ async function aoReceber({ telefone, jid, texto, nome, tipo, msg }) {
   }
 
   // É AQUI, e só aqui, que `ja_escreveu` vira 1.
-  registrarQuemEscreveu(jid, nome);
+  registrarQuemEscreveu({ telefone, jid, nome });
   await porteiro.marcarLido(msg);
 
   const conteudo = await lerConteudo({ telefone, jid, texto, tipo, msg });
