@@ -76,6 +76,24 @@ Ele manda mensagem no **seu** WhatsApp pessoal. Cada aviso tem uma cor:
 | 🟡 **perguntou algo fora do material** | Responda você e, se for pergunta comum, me avise pra colocar no material. |
 | 🟡 **pediu desconto** | Decisão sua. O robô não dá desconto sozinho. |
 | ⛔ **LISTA NEGRA** | Alguém pediu pra não receber mais. Se foi engano, o aviso traz o comando pra desfazer. |
+
+## Bloquear alguém você mesmo
+
+Serve pro golpista, pro concorrente pescando informação, pro número errado
+que insiste, e pra quem te pediu pra parar por fora do WhatsApp.
+
+**Pelo painel:** Conversas → abra a conversa → **Bloquear**.
+**Pelo WhatsApp:** `/bloquear 5519998887766`
+
+A pessoa **não é avisada** — simplesmente para de receber resposta. É de
+propósito: ela não pediu nada, então mandar "não te envio mais nada" seria
+estranho e ainda entregaria que foi bloqueada.
+
+Para desfazer: o mesmo lugar, botão **Tirar da lista negra**, ou
+`/liberar 5519998887766`.
+
+> A diferença: quando o **lead** pede pra parar, o robô manda uma despedida
+> curta e educada antes de silenciar. Quando **você** bloqueia, não manda nada.
 | 🔴 **A IA falhou** | O lead recebeu só um "já te respondo". **Assuma essa conversa.** O aviso diz o motivo em português. |
 
 ## Assumir uma conversa

@@ -411,8 +411,14 @@ async function telaConversas() {
                       onclick: () => agir('pausar', conversaAberta) }),
         h('button', { cls:'b fina', txt:'Devolver ao robô',
                       onclick: () => agir('voltar', conversaAberta) }),
-        c.lista_negra ? h('button', { cls:'b fina risco', txt:'Tirar da lista negra',
-                      onclick: () => agir('liberar', conversaAberta) }) : null),
+        c.lista_negra
+          ? h('button', { cls:'b fina risco', txt:'Tirar da lista negra',
+                          onclick: () => agir('liberar', conversaAberta) })
+          : h('button', { cls:'b fina risco', txt:'Bloquear',
+                          onclick: () => confirmar(
+                            'Bloquear este contato?\\n\\nEle não recebe mais nada do robô, ' +
+                            'e não é avisado disso. Dá pra desfazer aqui mesmo depois.',
+                            () => agir('bloquear', conversaAberta)) })),
       h('div', { cls:'carta-corpo', style:'border-top:1px solid var(--linha)' },
         d.mensagens.length
           ? d.mensagens.map((m) => h('div', { cls:'balao ' + m.autor },
@@ -808,6 +814,9 @@ async function motor(acao) {
 }
 
 function aviso(t) { if (t) window.alert(t); }
+
+/* Pergunta antes do que não é trivial desfazer. */
+function confirmar(pergunta, entao) { if (window.confirm(pergunta)) entao(); }
 
 /* ─── desenho ────────────────────────────────────────────────────────── */
 async function desenhar() {

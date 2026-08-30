@@ -20,6 +20,7 @@ import { paraExibir as telParaExibir, normalizar } from '../nucleo/telefone.js';
 import { paraPainel, salvarEnv, faltando, lerEnv } from './env.js';
 import { CURADOS, PADRAO, testarChave } from './modelos.js';
 import { criarAtalho, atalhoExiste } from './atalho.js';
+import { bloquearManualmente } from '../seguranca/index.js';
 import { listarBackups } from '../zelador/index.js';
 import { estado, lerLinhas, limparLinhas } from './estado.js';
 import { pagina } from './pagina.js';
@@ -273,6 +274,14 @@ async function executarAcao({ acao, alvo }) {
     case 'voltar':
       banco.despausar(alvo);
       return { ok: true, mensagem: 'Robô reassumiu a conversa.' };
+
+    case 'bloquear': {
+      const r = bloquearManualmente(alvo, 'bloqueado por você no painel');
+      if (r.ok) return { ok: true, mensagem: 'Bloqueado. Não recebe mais nada — e não foi avisado disso.' };
+      return { ok: false, mensagem: r.motivo === 'ja_esta_na_lista'
+        ? 'Esse contato já estava na lista negra.'
+        : `Não consegui bloquear: ${r.motivo}` };
+    }
 
     case 'liberar':
       return banco.liberarDaListaNegra(alvo)

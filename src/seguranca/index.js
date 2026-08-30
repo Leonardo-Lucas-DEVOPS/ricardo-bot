@@ -177,6 +177,28 @@ export function encerrarPorPedido(tel, motivo) {
   return 'Sem problema, não te mando mais nada. Qualquer coisa é só me chamar!';
 }
 
+/**
+ * Bloqueio manual — você decidindo, não o lead pedindo.
+ *
+ * É calado de propósito, e essa é a diferença pro `encerrarPorPedido`: quem
+ * pediu pra parar merece um "sem problema" educado; quem você bloqueou não
+ * pediu nada. Mandar "não te envio mais nada" pra alguém que não pediu é
+ * estranho, e ainda por cima avisa que foi bloqueado.
+ *
+ * Serve pro golpista, pro concorrente pescando informação, pro número errado
+ * que insiste, e pra quem te pediu pra parar por fora do WhatsApp.
+ */
+export function bloquearManualmente(tel, motivo = 'bloqueado por você') {
+  const telefone = normalizar(tel);
+  if (!telefone) return { ok: false, motivo: 'numero_invalido' };
+  if (!buscarContato(telefone)) return { ok: false, motivo: 'contato_inexistente' };
+  if (estaNaListaNegra(telefone)) return { ok: false, motivo: 'ja_esta_na_lista' };
+
+  aplicarListaNegra(telefone, motivo);
+  log.warn(`lista negra aplicada a ${telefone} manualmente`);
+  return { ok: true };
+}
+
 /** Só pra deixar registrado de forma legível quando algo é segurado. */
 export function registrarSaida(tel, quantos) {
   evento('mensagens_enviadas', tel, { quantos, quando: agora() });

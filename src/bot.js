@@ -23,6 +23,7 @@ import * as pedidos from './pedidos/index.js';
 import { entregarComoGente } from './disfarce/index.js';
 import {
   podeEnviar, limparLinkSeCedo, pediuParaParar, encerrarPorPedido,
+  bloquearManualmente,
 } from './seguranca/index.js';
 import { montarContexto, guardarAprendizado, resumirSePreciso } from './ficha/index.js';
 
@@ -451,6 +452,19 @@ async function aoReceberDoDono({ jid, texto }) {
   switch (comando.toLowerCase()) {
     case '/status':
       return responderDono(montarStatus());
+
+    case '/bloquear': {
+      if (!arg) return responderDono('Uso: /bloquear 5519998887766');
+      const alvo = normalizar(arg);
+      const r = bloquearManualmente(alvo, 'bloqueado por você pelo WhatsApp');
+      return responderDono(
+        r.ok
+          ? `⛔ ${telParaExibir(alvo)} bloqueado. Não recebe mais nada — e não foi avisado.`
+          : r.motivo === 'ja_esta_na_lista'
+            ? 'Esse contato já estava na lista negra.'
+            : `Não deu: ${r.motivo}`,
+      );
+    }
 
     case '/liberar': {
       if (!arg) return responderDono('Uso: /liberar 5519998887766');
