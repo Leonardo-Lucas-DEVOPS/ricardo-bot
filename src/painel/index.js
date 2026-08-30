@@ -180,6 +180,11 @@ function montarEstado() {
   // O banco só existe depois que o robô subiu ao menos uma vez.
   try {
     Object.assign(base, contarTudo());
+    // A tela inicial precisa das entregas junto com o resto: é a resposta
+    // da pergunta "o que eu preciso fazer agora?".
+    const p = listarPedidos();
+    base.entregarHoje = p.hoje;
+    base.naoPagos = p.naoPagos;
   } catch {
     base.semBanco = true;
   }
