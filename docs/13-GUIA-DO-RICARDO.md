@@ -122,6 +122,9 @@ Aba **Instruções**. São sete textos:
 
 Edite, clique em Salvar. **O robô muda em 2 segundos, sem parar de atender.**
 
+Se o ajuste piorar as respostas, o botão **Desfazer último salvamento** volta
+atrás. Clicar duas vezes desfaz o desfazer — dá pra comparar os dois.
+
 > Se você salvar algo errado e as respostas piorarem, é só editar de novo. Não
 > tem como quebrar o robô por aqui — se o texto ficar vazio, ele recusa e
 > mantém o anterior.

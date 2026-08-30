@@ -10,7 +10,7 @@
 // importa.
 
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { config } from '../config.js';
@@ -21,7 +21,7 @@ import { paraPainel, salvarEnv, faltando, lerEnv } from './env.js';
 import { CURADOS, PADRAO, testarChave } from './modelos.js';
 import { criarAtalho, atalhoExiste } from './atalho.js';
 import { bloquearManualmente } from '../seguranca/index.js';
-import { listarBackups } from '../zelador/index.js';
+import { listarBackups, fazerBackup } from '../zelador/index.js';
 import { estado, lerLinhas, limparLinhas } from './estado.js';
 import { pagina } from './pagina.js';
 
@@ -91,6 +91,7 @@ async function rotear(req, res) {
         // Mesma proteção do M4: arquivo vazio não é aplicado.
         return responder(res, 400, { erro: 'não salvo: o arquivo ficaria vazio' });
       }
+      guardarVersaoAnterior(nome, caminho);
       writeFileSync(caminho, conteudo, 'utf8');
       log.info(`instrucoes/${nome} salvo pelo painel`);
       return responder(res, 200, { ok: true });
@@ -99,7 +100,32 @@ async function rotear(req, res) {
     return responder(res, 200, {
       arquivo: nome,
       conteudo: existsSync(caminho) ? readFileSync(caminho, 'utf8') : '',
+      temAnterior: existsSync(caminhoAnterior(nome)),
     });
+  }
+
+  // Desfazer o último salvamento de um arquivo de instrução.
+  //
+  // O doc 04 (M4, proteção 2) promete isto: "se um ajuste piorar as
+  // respostas, dá pra voltar". O código guardava a versão anterior em
+  // memória e nunca existiu jeito de acionar. Agora a cópia é em disco —
+  // sobrevive a reinício e funciona com o robô desligado.
+  if (rota === '/api/reverter' && req.method === 'POST') {
+    const { arquivo } = await lerCorpo(req);
+    if (!INSTRUCOES.includes(arquivo)) return responder(res, 400, { erro: 'arquivo desconhecido' });
+
+    const anterior = caminhoAnterior(arquivo);
+    if (!existsSync(anterior)) {
+      return responder(res, 400, { ok: false, mensagem: 'Não há versão anterior guardada.' });
+    }
+
+    const atual = resolve(config.pastas.instrucoes, arquivo);
+    const guardado = readFileSync(anterior, 'utf8');
+    // Troca as duas: assim "reverter" duas vezes volta pro que estava.
+    writeFileSync(anterior, readFileSync(atual, 'utf8'), 'utf8');
+    writeFileSync(atual, guardado, 'utf8');
+    log.warn(`instrucoes/${arquivo} revertido pelo painel`);
+    return responder(res, 200, { ok: true, mensagem: 'Voltou para a versão anterior.' });
   }
 
   // Liga/desliga o robô sem derrubar o painel.
@@ -141,6 +167,22 @@ async function rotear(req, res) {
 
   if (rota === '/api/atalho') return responder(res, 200, await atalhoExiste());
 
+  // Backup na hora. Existia só automático (30s depois de ligar, e às 3h) —
+  // mas antes de mexer nas instruções ou entregar a máquina pra alguém, você
+  // quer poder salvar agora.
+  if (rota === '/api/backup' && req.method === 'POST') {
+    const r = fazerBackup();
+    return responder(res, 200, r.ok
+      ? { ok: true, mensagem: `Backup salvo (${(r.bytes / 1024).toFixed(0)} KB).` }
+      : { ok: false, mensagem: `Não deu: ${r.erro}` });
+  }
+
+  // O diário de bordo. O doc 07 diz que é "onde você olha quando algo
+  // estranho acontecer" — e até agora só dava pra ver por SQL.
+  if (rota === '/api/eventos') {
+    return responder(res, 200, listarEventos(url));
+  }
+
   if (rota === '/api/conversas') return responder(res, 200, listarConversas(url));
   if (rota === '/api/pedidos') return responder(res, 200, listarPedidos());
 
@@ -153,6 +195,25 @@ async function rotear(req, res) {
   }
 
   responder(res, 404, { erro: 'não existe' });
+}
+
+// ---------------------------------------------------------------------------
+//  Versão anterior das instruções
+// ---------------------------------------------------------------------------
+
+const PASTA_ANTERIOR = resolve(config.pastas.dados, 'instrucoes-anterior');
+const caminhoAnterior = (nome) => resolve(PASTA_ANTERIOR, nome);
+
+/** Antes de gravar por cima, guarda o que estava lá. */
+function guardarVersaoAnterior(nome, caminhoAtual) {
+  try {
+    if (!existsSync(caminhoAtual)) return;
+    mkdirSync(PASTA_ANTERIOR, { recursive: true });
+    writeFileSync(caminhoAnterior(nome), readFileSync(caminhoAtual, 'utf8'), 'utf8');
+  } catch (erro) {
+    // Falhar em guardar a cópia não pode impedir você de salvar o texto.
+    log.warn({ erro: erro.message }, `não guardei a versão anterior de ${nome}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +309,75 @@ function listarConversas(url) {
   };
 }
 
+// Nomes que dizem alguma coisa. `evento('preco_inventado')` é claro pra quem
+// escreveu o código; pra quem opera, não.
+const NOME_EVENTO = {
+  conectado: 'WhatsApp conectado', desconectado: 'WhatsApp desconectado',
+  reconexao_desistiu: 'Desistiu de reconectar', desligado: 'Robô desligado',
+  ia_chamada: 'Chamada à IA', ia_falhou: 'A IA falhou',
+  json_invalido: 'A IA respondeu fora do formato',
+  ficha_invalida: 'Campo inválido na ficha',
+  preco_inventado: 'Preço fora da tabela — barrado',
+  preco_inventado_persistiu: 'Preço fora da tabela insistiu — bastão passado',
+  resposta_cortada: 'Resposta longa demais — cortada',
+  envio_recusado: 'Envio recusado pela trava', envio_segurado: 'Envio segurado',
+  link_removido: 'Link removido (primeiras mensagens)',
+  lista_negra_aplicada: 'Lista negra aplicada',
+  lista_negra_liberada: 'Lista negra desfeita',
+  mensagem_ignorada: 'Mensagem ignorada',
+  humano_assumiu: 'Você assumiu a conversa', bastao_passado: 'Bastão passado pra você',
+  pedido_criado: 'Pedido criado', pedido_status: 'Pedido mudou de status',
+  pedido_confirmado: 'Pedido confirmado', confirmacao_pedida: 'Confirmação pedida',
+  pedido_fora_de_ordem: 'Pedido sem confirmação — recusado',
+  pedido_pacote_invalido: 'Pacote inexistente — recusado',
+  audio_transcrito: 'Áudio transcrito', audio_longo: 'Áudio longo demais',
+  audio_falhou: 'Áudio falhou', audio_recebido: 'Áudio recebido',
+  resumo_gerado: 'Resumo da conversa gerado',
+  instrucao_recarregada: 'Instrução recarregada',
+  instrucao_recusada: 'Instrução recusada (arquivo quebrado)',
+  instrucao_revertida: 'Instrução revertida',
+  backup_feito: 'Backup salvo', backup_falhou: 'Backup falhou',
+  fila_segurada: 'Fila segurada', fila_destravada: 'Fila destravada à força',
+  erro_processamento: 'Erro ao processar', estagio_retrocedeu_ignorado: 'Estágio retrocedeu — ignorado',
+};
+
+// O que merece destaque quando você está caçando problema.
+const EVENTO_RUIM = new Set([
+  'ia_falhou', 'desconectado', 'reconexao_desistiu', 'backup_falhou',
+  'preco_inventado_persistiu', 'erro_processamento', 'fila_destravada',
+  'audio_falhou', 'instrucao_recusada', 'pedido_pacote_invalido',
+]);
+
+function listarEventos(url) {
+  const { db } = carregarBanco();
+  const tipo = url.searchParams.get('tipo');
+  const limite = Math.min(Number(url.searchParams.get('limite')) || 120, 400);
+
+  // `ia_chamada` é uma por mensagem: entope a lista e não conta história.
+  const filtro = tipo && tipo !== 'todos'
+    ? 'WHERE tipo = ?' : "WHERE tipo <> 'ia_chamada'";
+  const args = tipo && tipo !== 'todos' ? [tipo, limite] : [limite];
+
+  const linhas = db
+    .prepare(`SELECT * FROM eventos ${filtro} ORDER BY id DESC LIMIT ?`)
+    .all(...args);
+
+  return {
+    eventos: linhas.map((e) => ({
+      id: e.id,
+      tipo: e.tipo,
+      nome: NOME_EVENTO[e.tipo] ?? e.tipo,
+      ruim: EVENTO_RUIM.has(e.tipo),
+      quem: e.telefone ? telParaExibir(e.telefone) : null,
+      detalhe: e.detalhe,
+      quando: paraExibir(e.criado_em),
+    })),
+    tipos: db.prepare('SELECT tipo, COUNT(*) AS n FROM eventos GROUP BY tipo ORDER BY n DESC')
+      .all()
+      .map((t) => ({ ...t, nome: NOME_EVENTO[t.tipo] ?? t.tipo })),
+  };
+}
+
 function listarPedidos() {
   const pedidos = carregarPedidos();
   const enfeitar = (p) => ({
@@ -289,10 +419,14 @@ async function executarAcao({ acao, alvo }) {
         : { ok: false, mensagem: 'Esse contato não estava na lista negra.' };
 
     case 'entregue':
-    case 'pago': {
+    case 'pago':
+    case 'nao_pago':
+    case 'cancelado': {
       const r = carregarPedidos().mudarStatus(alvo, acao);
+      const nome = { entregue: 'entregue', pago: 'pago',
+                     nao_pago: 'não pago', cancelado: 'cancelado' }[acao];
       return r.ok
-        ? { ok: true, mensagem: `Pedido #${r.pedido.numero} marcado como ${acao}.` }
+        ? { ok: true, mensagem: `Pedido #${r.pedido.numero} marcado como ${nome}.` }
         : { ok: false, mensagem: `Não deu: ${r.motivo}` };
     }
 

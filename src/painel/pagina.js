@@ -266,7 +266,7 @@ let linhasTerminal = [];
 
 const ABAS = { hoje:'Hoje', conversas:'Conversas', pedidos:'Pedidos' };
 const AJUSTES = { config:'Configuração', instrucoes:'Instruções',
-                  terminal:'Terminal', sobre:'Sobre' };
+                  terminal:'Terminal', eventos:'Eventos', sobre:'Sobre' };
 const PASSOS = ['A IA','Seu negócio','Entrega','WhatsApp','Pronto'];
 
 /* ─── cabeçalho ──────────────────────────────────────────────────────── */
@@ -467,6 +467,26 @@ async function telaPedidos() {
     grupo('Todos os abertos', d.abertos, null, null),
   ].filter(Boolean);
 
+  // O M8 aceita nao_pago e cancelado, e ate agora nao havia como chegar
+  // neles pela tela: um pedido cancelado ficava aberto pra sempre.
+  if (d.abertos.length) {
+    blocos.push(h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Encerrar um pedido' })),
+      h('div', { cls:'carta-corpo' },
+        h('div', { cls:'fraco', style:'margin-bottom:12px' },
+          'Pra desistência do cliente ou calote assumido — some da lista de aberto.'),
+        h('div', { cls:'fila' },
+          h('select', { id:'ped-alvo', style:'width:auto;min-width:220px' },
+            d.abertos.map((p) => h('option', { value: String(p.numero),
+              txt: '#' + p.numero + ' · ' + p.pacote.toLocaleString('pt-BR') +
+                   ' leads · ' + p.exibir }))),
+          h('button', { cls:'b', txt:'Marcar não pago',
+            onclick: () => agir('nao_pago', Number($('#ped-alvo').value)) }),
+          h('button', { cls:'b risco', txt:'Cancelar pedido',
+            onclick: () => confirmar('Cancelar este pedido?',
+              () => agir('cancelado', Number($('#ped-alvo').value))) })))));
+  }
+
   return blocos.length ? blocos
     : [h('div', { cls:'carta' }, vazio('📋', 'Nenhum pedido ainda.'))];
 }
@@ -554,8 +574,21 @@ async function telaInstrucoes() {
         h('div', { cls:'fila', style:'margin-top:12px' },
           h('button', { cls:'b forte', txt:'Salvar ' + nome(arquivoAberto),
                         onclick: salvarInstrucao }),
+          r.temAnterior
+            ? h('button', { cls:'b', txt:'Desfazer último salvamento',
+                onclick: () => confirmar(
+                  'Voltar para a versão anterior de ' + arquivoAberto + '?\\n\\n' +
+                  'O texto de agora fica guardado — dá pra desfazer o desfazer.',
+                  reverterInstrucao) })
+            : h('span', { cls:'mini', txt:'sem versão anterior guardada' }),
           h('span', { cls:'fraco', id:'msg-instr' })))),
   ];
+}
+
+async function reverterInstrucao() {
+  const r = await post('/api/reverter', { arquivo: arquivoAberto });
+  aviso(r.mensagem || r.erro);
+  desenhar();
 }
 
 async function salvarInstrucao() {
@@ -587,6 +620,56 @@ function telaTerminal() {
   ];
 }
 
+/* ─── AJUSTES: eventos ───────────────────────────────────────────────── */
+
+let filtroEvento = 'nenhum';
+
+async function telaEventos() {
+  const d = await api('/api/eventos' +
+    (filtroEvento !== 'nenhum' ? '?tipo=' + encodeURIComponent(filtroEvento) : ''));
+
+  const filtros = h('div', { cls:'carta-topo', style:'flex-wrap:wrap;gap:6px' },
+    h('select', { style:'width:auto;min-width:240px',
+      onchange: (ev) => { filtroEvento = ev.target.value; desenhar(); } },
+      h('option', { value:'nenhum', selected: filtroEvento === 'nenhum',
+                    txt:'Tudo que importa (sem as chamadas à IA)' }),
+      h('option', { value:'todos', selected: filtroEvento === 'todos',
+                    txt:'Absolutamente tudo' }),
+      d.tipos.map((t) => h('option', { value: t.tipo, selected: filtroEvento === t.tipo,
+                                       txt: t.nome + ' (' + t.n + ')' }))),
+    h('span', { cls:'conta', txt: d.eventos.length + ' eventos' }));
+
+  return [
+    h('div', { cls:'faixa ok' }, h('div', null,
+      'O diário de bordo: tudo que o robô fez e por quê. ',
+      h('b', { txt:'É aqui que você olha quando algo estranho acontece.' }))),
+    h('div', { cls:'carta' }, filtros,
+      d.eventos.length
+        ? d.eventos.map((e) => h('div', { cls:'item' },
+            h('div', { cls:'cresce' },
+              h('div', { cls:'titulo', style: e.ruim ? 'color:var(--perigo)' : '' },
+                (e.ruim ? '● ' : '') + e.nome),
+              h('div', { cls:'mini' },
+                [e.quem, detalhinho(e.detalhe)].filter(Boolean).join(' · ') || e.tipo)),
+            h('div', { cls:'mini', style:'flex:none', txt: e.quando })))
+        : vazio('📔', 'Nada registrado ainda.')),
+  ];
+}
+
+/* O detalhe é JSON no banco. Aqui vira uma frase curta. */
+function detalhinho(bruto) {
+  if (!bruto) return '';
+  try {
+    return Object.entries(JSON.parse(bruto))
+      .filter(([, v]) => v !== null && v !== '' && typeof v !== 'object')
+      .slice(0, 3)
+      .map(([k, v]) => k + ': ' + String(v).slice(0, 40))
+      .join(' · ');
+  } catch {
+    return String(bruto).slice(0, 60);
+  }
+}
+
 /* ─── AJUSTES: sobre ─────────────────────────────────────────────────── */
 async function telaSobre() {
   const a = await api('/api/atalho');
@@ -608,10 +691,19 @@ async function telaSobre() {
                             onclick: () => atalho(true, true) })))),
     h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' }, h('h2', { txt:'Backup' })),
-      h('div', { cls:'carta-corpo' }, b
-        ? h('div', { cls:'fraco' }, 'Último: ', h('b', { txt: b.arquivo }), ' · ',
-            (b.bytes / 1024).toFixed(0), ' KB · guardando 14 dias em dados/backup/')
-        : h('div', { cls:'fraco', txt:'Nenhum backup ainda — o primeiro sai 30s depois do robô ligar.' }))),
+      h('div', { cls:'carta-corpo' },
+        b
+          ? h('div', { cls:'fraco', style:'margin-bottom:12px' },
+              'Último: ', h('b', { txt: b.arquivo }), ' · ',
+              (b.bytes / 1024).toFixed(0), ' KB · automático às 3h, guardando 14 dias')
+          : h('div', { cls:'fraco', style:'margin-bottom:12px',
+              txt:'Nenhum backup ainda — o primeiro sai 30s depois do robô ligar.' }),
+        (E.backups || []).length > 1
+          ? h('div', { cls:'mini', style:'margin-bottom:12px' },
+              'Também tem: ' + E.backups.slice(1).map((x) => x.arquivo).join(' · '))
+          : null,
+        h('button', { cls:'b', txt:'Fazer backup agora', onclick: async () => {
+          aviso((await post('/api/backup')).mensagem); desenhar(); } }))),
     h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' }, h('h2', { txt:'Sistema' })),
       h('div', { cls:'carta-corpo fraco' },
@@ -827,7 +919,7 @@ async function desenhar() {
 
   const mapa = { hoje: telaHoje, conversas: telaConversas, pedidos: telaPedidos,
                  config: telaConfig, instrucoes: telaInstrucoes,
-                 terminal: telaTerminal, sobre: telaSobre };
+                 terminal: telaTerminal, eventos: telaEventos, sobre: telaSobre };
   const fn = mapa[aba] || telaHoje;
   const conteudo = await fn();
   troca(tela, conteudo);

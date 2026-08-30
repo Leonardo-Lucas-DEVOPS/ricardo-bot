@@ -169,7 +169,7 @@ segundos de nada é que soa a máquina.
 | | O quê |
 |---|---|
 | ✅ | Guia de operação — virou o **doc 13** |
-| ⬜ | Aba de eventos no painel (hoje só dá pra ver por SQL) |
+| ✅ | Aba de eventos no painel |
 | ⬜ | Rotação de chaves com cooldown *(iniciado; ver Parte 4)* |
 
 ## 🚫 Não é código — só você pode fazer
