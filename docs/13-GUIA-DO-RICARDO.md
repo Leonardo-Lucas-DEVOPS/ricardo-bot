@@ -11,13 +11,21 @@
 
 **Duplo clique no ícone verde "Ricardo Bot"** na Área de Trabalho.
 
-Abre uma janela preta com letras — **não feche essa janela.** É o robô rodando.
-Pode minimizar. O navegador abre sozinho no painel.
+Não abre janela nenhuma — só o navegador, no painel. O robô roda escondido.
 
 Se não tiver o ícone ainda: abra a pasta `C:\WorkSpace\ricardo-bot` e clique em
-`Iniciar Ricardo Bot.bat`. Depois, no painel, tem um botão pra criar o ícone.
+`Ricardo Bot.vbs`. Depois, no painel, em Ajustes (⚙) → Sobre, tem um botão pra
+criar o ícone.
 
-**Desligar:** feche a janela preta. O robô para de atender na hora.
+**Ligar e desligar o robô:** a chavinha no canto superior direito do painel.
+O painel continua de pé com o robô desligado — é assim que dá pra configurar
+antes de ligar.
+
+**Ver o que ele está fazendo:** Ajustes (⚙) → **Terminal**. Como a janela fica
+escondida, é ali que aparece o log ao vivo.
+
+> Se um dia você quiser ver a janela preta de verdade, use o
+> `Iniciar Ricardo Bot.bat` em vez do ícone. Serve pra depurar.
 
 ---
 
@@ -60,6 +68,7 @@ código. **Ele nasce mais ou menos e fica bom no vigésimo ajuste.**
 **Toda semana:**
 - Veja "Entregues e não pagos" (fica em vermelho) e decida quem você ainda atende
 - Olhe "Tokens usados" — se estiver subindo demais, me chame
+- Ajustes (⚙) → **Eventos**: passe o olho, os problemas ficam em vermelho
 
 ---
 
@@ -76,6 +85,7 @@ Ele manda mensagem no **seu** WhatsApp pessoal. Cada aviso tem uma cor:
 | 🟡 **perguntou algo fora do material** | Responda você e, se for pergunta comum, me avise pra colocar no material. |
 | 🟡 **pediu desconto** | Decisão sua. O robô não dá desconto sozinho. |
 | ⛔ **LISTA NEGRA** | Alguém pediu pra não receber mais. Se foi engano, o aviso traz o comando pra desfazer. |
+| 🔴 **A IA falhou** | O lead recebeu só um "já te respondo". **Assuma essa conversa.** O aviso diz o motivo em português. |
 
 ## Bloquear alguém você mesmo
 
@@ -94,7 +104,6 @@ Para desfazer: o mesmo lugar, botão **Tirar da lista negra**, ou
 
 > A diferença: quando o **lead** pede pra parar, o robô manda uma despedida
 > curta e educada antes de silenciar. Quando **você** bloqueia, não manda nada.
-| 🔴 **A IA falhou** | O lead recebeu só um "já te respondo". **Assuma essa conversa.** O aviso diz o motivo em português. |
 
 ## Assumir uma conversa
 
@@ -135,9 +144,14 @@ atrás. Clicar duas vezes desfaz o desfazer — dá pra comparar os dois.
 
 ## O robô não está respondendo
 
-1. A janela preta ainda está aberta? Se fechou, clique no ícone de novo.
-2. Painel mostra 🟢 no ar? Se mostrar "esperando QR", escaneie de novo.
-3. Olhe o arquivo `logs\ALARME.log`. **Se ele tem conteúdo, algo precisa de você.**
+1. A chavinha no canto do painel está ligada? Se não, ligue.
+2. Diz 🟢 no ar? Se disser "esperando QR", escaneie de novo.
+3. Ajustes (⚙) → **Terminal**: o motivo aparece ali, ao vivo.
+4. Ajustes (⚙) → **Eventos**: o histórico, com os problemas em vermelho.
+5. Se nem o painel abrir, clique no ícone de novo.
+
+O arquivo `logs\ALARME.log` guarda só o que é grave. **Se ele tem conteúdo,
+algo precisa de você.**
 
 ## Apareceu um arquivo "PRECISA-QR.txt" na pasta dados
 
