@@ -735,12 +735,26 @@ async function telaSobre() {
               (b.bytes / 1024).toFixed(0), ' KB · automático às 3h, guardando 14 dias')
           : h('div', { cls:'fraco', style:'margin-bottom:12px',
               txt:'Nenhum backup ainda — o primeiro sai 30s depois do robô ligar.' }),
-        (E.backups || []).length > 1
-          ? h('div', { cls:'mini', style:'margin-bottom:12px' },
-              'Também tem: ' + E.backups.slice(1).map((x) => x.arquivo).join(' · '))
-          : null,
-        h('button', { cls:'b', txt:'Fazer backup agora', onclick: async () => {
-          aviso((await post('/api/backup')).mensagem); desenhar(); } }))),
+        h('div', { cls:'fila', style:'margin-bottom:14px' },
+          h('button', { cls:'b', txt:'Fazer backup agora', onclick: async () => {
+            aviso((await post('/api/backup')).mensagem); desenhar(); } })),
+
+        (E.backups || []).length
+          ? h('div', null,
+              h('div', { cls:'rot', style:'margin-bottom:6px', txt:'Voltar para um backup' }),
+              h('div', { cls:'fila' },
+                h('select', { id:'bk-alvo', style:'width:auto;min-width:230px' },
+                  E.backups.map((x) => h('option', { value: x.arquivo,
+                    txt: x.arquivo + ' (' + (x.bytes / 1024).toFixed(0) + ' KB)' }))),
+                h('button', { cls:'b risco', txt:'Restaurar', onclick: () => confirmar(
+                  'Voltar o banco para este backup?\n\n' +
+                  'Tudo que aconteceu DEPOIS dele — conversas, pedidos — sai do ar.\n' +
+                  'O banco de agora fica guardado, então dá pra desfazer.',
+                  restaurarBackup) })),
+              h('div', { cls:'mini', style:'margin-top:8px' },
+                'A troca acontece quando você fechar e abrir o programa — ' +
+                'não dá pra substituir o banco com ele aberto.'))
+          : null)),
     h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' }, h('h2', { txt:'Sistema' })),
       h('div', { cls:'carta-corpo fraco' },
@@ -752,6 +766,12 @@ async function telaSobre() {
           h('button', { cls:'b', txt:'Abrir o assistente',
                         onclick: () => { passo = 0; desenhar(); } })))),
   ];
+}
+
+async function restaurarBackup() {
+  const r = await post('/api/restaurar', { arquivo: $('#bk-alvo').value });
+  aviso(r.mensagem);
+  desenhar();
 }
 
 async function atalho(mesa, windows) {

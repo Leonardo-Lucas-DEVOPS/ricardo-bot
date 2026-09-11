@@ -27,27 +27,15 @@ const bool = (chave, padrao) => {
 };
 
 /**
- * Todas as chaves do .env, em ordem: GEMINI_KEY_1, _2, _3... sem limite.
+ * A chave ativa. UMA rodando, as outras na gaveta — sem rodízio
+ * automático, de propósito (doc 08, risco 3).
  *
- * Varre até achar 5 buracos seguidos, então numeração com furo
- * (1,2,3,7) não faz a lista parar no 3.
+ * Houve um começo de rotacionador aqui: uma função que lia N chaves e que
+ * nada nunca chamou. Código que promete o que não entrega é pior que código
+ * ausente — quem ler depois acha que o rodízio existe. Removido.
+ *
+ * Trocar de chave continua sendo: mudar GEMINI_KEY_ATIVA e reiniciar.
  */
-function chavesGemini() {
-  const achadas = [];
-  let vazios = 0;
-  for (let i = 1; vazios < 5 && i <= 200; i++) {
-    const k = texto(`GEMINI_KEY_${i}`);
-    if (k) {
-      achadas.push({ indice: i, chave: k });
-      vazios = 0;
-    } else {
-      vazios++;
-    }
-  }
-  return achadas;
-}
-
-/** Por qual começar. Depois disso quem manda é o Chaveiro. */
 function chaveGeminiAtiva() {
   const qual = numero('GEMINI_KEY_ATIVA', 1);
   return texto(`GEMINI_KEY_${qual}`);

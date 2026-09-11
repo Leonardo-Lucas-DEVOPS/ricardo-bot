@@ -9,6 +9,9 @@ dados/*.db
 dados/*.db-journal
 dados/*.db-wal
 dados/*.db-shm
+# restos de restauracao e de banco corrompido
+dados/*.db.*
+dados/RESTAURAR.txt
 dados/backup/
 dados/PRECISA-QR.txt
 dados/instrucoes-anterior/

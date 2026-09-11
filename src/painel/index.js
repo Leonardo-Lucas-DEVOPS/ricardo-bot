@@ -177,6 +177,35 @@ async function rotear(req, res) {
       : { ok: false, mensagem: `Não deu: ${r.erro}` });
   }
 
+  /**
+   * Restaurar um backup.
+   *
+   * Não troca o arquivo agora: deixa o pedido escrito e o banco se restaura
+   * na próxima abertura. Substituir o .db debaixo de duas conexões abertas
+   * (painel e robô) é como corromper os dois de uma vez.
+   */
+  if (rota === '/api/restaurar' && req.method === 'POST') {
+    const { arquivo } = await lerCorpo(req);
+    const backups = listarBackups();
+    const alvo = backups.find((b) => b.arquivo === arquivo);
+    if (!alvo) return responder(res, 400, { ok: false, mensagem: 'Backup não encontrado.' });
+
+    const origem = resolve(config.pastas.backup, alvo.arquivo);
+    writeFileSync(resolve(config.pastas.dados, 'RESTAURAR.txt'), origem, 'utf8');
+    log.warn(`restauração agendada: ${alvo.arquivo}`);
+
+    // Desliga o robô já: ele não deve seguir gravando no banco que vai sumir.
+    estado.acoes.desligar?.();
+
+    return responder(res, 200, {
+      ok: true,
+      mensagem: `Restauração de ${alvo.arquivo} agendada.\n\n` +
+        'Desliguei o robô. Agora FECHE e ABRA o programa pelo ícone — ' +
+        'a troca acontece na abertura.\n\n' +
+        'O banco atual fica guardado como ricardo.db.antes-da-restauracao.',
+    });
+  }
+
   // O diário de bordo. O doc 07 diz que é "onde você olha quando algo
   // estranho acontecer" — e até agora só dava pra ver por SQL.
   if (rota === '/api/eventos') {

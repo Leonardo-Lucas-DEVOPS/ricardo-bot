@@ -4,19 +4,110 @@
 // doc 07. Nenhum outro módulo fala com o banco direto: se um dia o
 // `node:sqlite` incomodar, troca-se só este arquivo (doc 05, plano B).
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, copyFileSync, renameSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { config } from '../config.js';
 import { agora } from '../nucleo/relogio.js';
 import { normalizar, paraJid } from '../nucleo/telefone.js';
-import { log } from '../nucleo/log.js';
+import { log, alarme } from '../nucleo/log.js';
 
 const VERSAO_ESQUEMA = 1;
 
 mkdirSync(config.pastas.dados, { recursive: true });
 
-export const db = new DatabaseSync(config.banco);
+// ---------------------------------------------------------------------------
+//  Antes de abrir: restauração pendente e banco corrompido
+// ---------------------------------------------------------------------------
+
+/**
+ * Uma restauração pedida pelo painel só pode acontecer AQUI — antes de
+ * qualquer conexão abrir. Trocar o arquivo debaixo de uma conexão aberta é
+ * receita de corromper os dois.
+ *
+ * O painel escreve o pedido num marcador; quem abrir o banco primeiro aplica.
+ */
+function aplicarRestauracaoPendente() {
+  const pedido = resolve(config.pastas.dados, 'RESTAURAR.txt');
+  if (!existsSync(pedido)) return;
+
+  try {
+    const origem = readFileSync(pedido, 'utf8').trim();
+    if (!origem || !existsSync(origem)) throw new Error(`backup não encontrado: ${origem}`);
+
+    // A restauração também precisa ser reversível: guarda o que está lá.
+    if (existsSync(config.banco)) {
+      copyFileSync(config.banco, `${config.banco}.antes-da-restauracao`);
+    }
+    for (const sufixo of ['-wal', '-shm']) {
+      const extra = config.banco + sufixo;
+      if (existsSync(extra)) rmSync(extra, { force: true });
+    }
+
+    copyFileSync(origem, config.banco);
+    rmSync(pedido, { force: true });
+    log.warn(`banco restaurado a partir de ${origem}`);
+  } catch (erro) {
+    rmSync(pedido, { force: true });
+    log.error({ erro: erro.message }, 'a restauração pedida falhou');
+  }
+}
+
+/**
+ * Abre o banco e prova que ele responde.
+ *
+ * Se o arquivo estiver corrompido, abrir pode até funcionar — quebra na
+ * primeira consulta. E aí o programa inteiro morre no import, o que derruba
+ * também o painel que ofereceria a restauração. O robô fica sem caminho de
+ * volta justamente na hora em que você mais precisa dele.
+ *
+ * Então: banco que não responde é movido pra um lado e o programa sobe com
+ * um novo. Os dados não se perdem — estão no backup diário, e o arquivo
+ * defeituoso fica guardado.
+ */
+function abrirBanco() {
+  let conexao = null;
+
+  try {
+    conexao = new DatabaseSync(config.banco);
+    conexao.prepare('SELECT 1').get();   // prova de vida
+    return conexao;
+  } catch (erro) {
+    // O `new DatabaseSync` ABRE o arquivo mesmo quando a consulta falha
+    // depois. E o Windows não renomeia arquivo com handle aberto — sem este
+    // close, a tentativa de mover falha calada e o retry estoura igual,
+    // derrubando o programa inteiro.
+    try {
+      conexao?.close();
+    } catch {
+      // já estava ruim; seguir
+    }
+
+    const marca = new Date().toISOString().replace(/[:.]/g, '-');
+    const defeituoso = `${config.banco}.corrompido-${marca}`;
+    try {
+      if (existsSync(config.banco)) renameSync(config.banco, defeituoso);
+      for (const sufixo of ['-wal', '-shm']) rmSync(config.banco + sufixo, { force: true });
+    } catch (moveu) {
+      log.error({ erro: moveu.message }, 'não consegui mover o banco defeituoso');
+    }
+
+    alarme(
+      'O banco de dados estava corrompido',
+      `movido para ${defeituoso}. Subi com um banco novo — ` +
+        'restaure o último backup pelo painel (Ajustes → Sobre).',
+    );
+
+    const novo = new DatabaseSync(config.banco);
+    novo.prepare('SELECT 1').get();
+    return novo;
+  }
+}
+
+aplicarRestauracaoPendente();
+
+export const db = abrirBanco();
 
 // A ORDEM AQUI IMPORTA, e custou um bug pra descobrir.
 //
@@ -136,14 +227,6 @@ export function evento(tipo, telefone = null, detalhe = null) {
   } catch (erro) {
     log.error({ erro: erro.message, tipo }, 'não consegui gravar evento');
   }
-}
-
-export function contarEventos(tipo, desdeISO) {
-  return (
-    db
-      .prepare('SELECT COUNT(*) AS n FROM eventos WHERE tipo = ? AND criado_em >= ?')
-      .get(tipo, desdeISO)?.n ?? 0
-  );
 }
 
 // ---------------------------------------------------------------------------

@@ -43,7 +43,7 @@ function avisarPai(campos) {
   }
 }
 const definir = avisarPai;
-import { iniciarZelador, fazerBackup, listarBackups } from './zelador/index.js';
+import { iniciarZelador } from './zelador/index.js';
 import * as banco from './ficha/banco.js';
 import {
   registrarQuemEscreveu, gravarMensagem, ehEcoDoRobo, evento,

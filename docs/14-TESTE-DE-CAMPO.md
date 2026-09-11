@@ -251,11 +251,34 @@ Esta é a armadilha: o robô e você usam a mesma conta.
 - [ ] Painel → Conversas: **o histórico está lá**
 - [ ] Painel → Pedidos: **os pedidos estão lá**
 
-### 6.3 — Backup
+### 6.3 — Backup e volta atrás
 
 1. Ajustes → Sobre → **Fazer backup agora**
 
 - [ ] Aparece o arquivo com data e tamanho
+
+2. Mude alguma coisa (corrija o nicho de um contato, por exemplo)
+3. Ajustes → Sobre → escolha o backup → **Restaurar**
+
+- [ ] Ele avisa que o robô foi desligado e pede pra fechar e abrir
+4. Feche o programa e abra pelo ícone
+
+- [ ] ✅ **O dado voltou ao que era no backup**
+- [ ] Na pasta  existe um  — a restauração também dá pra desfazer
+
+### 6.4 — Banco corrompido não derruba o programa
+
+*Verificado em bancada, mas vale conferir na sua máquina.*
+
+1. Feche o programa
+2. Abra a pasta , renomeie  para 
+3. Crie um arquivo de texto vazio chamado 
+4. Abra o programa
+
+- [ ] ✅ **O painel abre normalmente** (com banco vazio)
+- [ ]  registra que o banco estava corrompido
+- [ ] O arquivo defeituoso foi preservado como 
+5. Feche, apague o  novo, renomeie  de volta
 
 ---
 

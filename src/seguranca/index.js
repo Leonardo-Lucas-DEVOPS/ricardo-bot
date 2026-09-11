@@ -198,8 +198,3 @@ export function bloquearManualmente(tel, motivo = 'bloqueado por você') {
   log.warn(`lista negra aplicada a ${telefone} manualmente`);
   return { ok: true };
 }
-
-/** Só pra deixar registrado de forma legível quando algo é segurado. */
-export function registrarSaida(tel, quantos) {
-  evento('mensagens_enviadas', tel, { quantos, quando: agora() });
-}
