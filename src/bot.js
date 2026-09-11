@@ -417,6 +417,36 @@ async function encerrarConversa(telefone, jid, motivo) {
   if (despedida) await entregar(telefone, jid, despedida);
 }
 
+/**
+ * Avisa quando uma pausa de 2 horas vence.
+ *
+ * Você assume a conversa na mão, resolve, e esquece. Duas horas depois o robô
+ * voltava a falar sozinho — no meio da conversa, sem ninguém saber. Do lado
+ * do cliente parece que duas pessoas diferentes estão atendendo.
+ *
+ * Agora ele avisa antes de reassumir, e o aviso já traz o comando pra segurar
+ * de novo se você ainda não terminou.
+ */
+function vigiarPausas() {
+  setInterval(async () => {
+    try {
+      for (const c of banco.pausasQueExpiraram()) {
+        const quem = telParaExibir(c.telefone);
+        log.info(`pausa de ${quem} venceu — robô reassume`);
+        evento('pausa_venceu', c.telefone);
+        await avisarDono(
+          `🤖 VOLTEI A ATENDER\n\n${quem}${c.nome ? ` (${c.nome})` : ''}\n` +
+            'A pausa de 2h venceu e o robô reassumiu essa conversa.\n\n' +
+            `Se você ainda não terminou: /pausar ${c.telefone}`,
+          { chave: `pausa_venceu:${c.telefone}` },
+        );
+      }
+    } catch (erro) {
+      log.error({ erro: erro.message }, 'erro ao vigiar as pausas');
+    }
+  }, 60_000);
+}
+
 // ---------------------------------------------------------------------------
 //  Takeover — doc 11, §10
 // ---------------------------------------------------------------------------
@@ -616,6 +646,7 @@ async function subirRobo() {
   });
 
   iniciarZelador();
+  vigiarPausas();
 
   // Ordens vindas do painel.
   process.on('message', (msg) => {

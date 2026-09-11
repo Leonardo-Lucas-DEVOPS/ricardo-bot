@@ -406,6 +406,25 @@ async function telaConversas() {
           h('div', { cls:'forte', txt: c.nome || c.telefone || '—' }),
           h('div', { cls:'mini', txt: [c.nicho, c.regiao, c.tipo_cliente, c.estagio]
             .filter(Boolean).join(' · ') || 'ainda sem informação' }))),
+      // A ficha é editável: é o que a IA entendeu, e ela erra. Nicho errado
+      // aqui vira planilha errada montada à mão lá na frente.
+      h('div', { cls:'carta-corpo', style:'border-bottom:1px solid var(--linha)' },
+        h('div', { cls:'fila', style:'align-items:flex-end' },
+          campoFicha('nome', 'Nome', c.nome),
+          campoFicha('nicho', 'Nicho', c.nicho),
+          campoFicha('regiao', 'Região', c.regiao),
+          h('label', { cls:'campo', style:'margin:0;width:110px' },
+            h('span', { cls:'rot', txt:'Tipo' }),
+            h('select', { id:'f-tipo_cliente' },
+              h('option', { value:'', txt:'—', selected: !c.tipo_cliente }),
+              ['pf', 'pj', 'ambos'].map((v) => h('option', { value: v, txt: v.toUpperCase(),
+                selected: c.tipo_cliente === v })))),
+          h('button', { cls:'b forte', txt:'Corrigir', onclick: salvarFicha })),
+        h('div', { cls:'mini', style:'margin-top:8px' },
+          'Deixe em branco pra apagar um campo que a IA errou. ',
+          h('b', { txt:'Estágio: ' + (c.estagio || '—') }),
+          c.pacote_interesse ? ' · pacote de interesse: ' + c.pacote_interesse : '')),
+
       h('div', { cls:'carta-corpo', style:'display:flex;gap:8px;flex-wrap:wrap' },
         h('button', { cls:'b fina', txt:'Assumir por 2h',
                       onclick: () => agir('pausar', conversaAberta) }),
@@ -443,6 +462,24 @@ async function telaConversas() {
             h('div', { txt: c.nicho || '' })))
         )
       : vazio('👋', 'Nenhum lead ainda. Quando alguém escrever, aparece aqui.'))];
+}
+
+const campoFicha = (campo, rotulo, valor) =>
+  h('label', { cls:'campo', style:'margin:0;flex:1;min-width:120px' },
+    h('span', { cls:'rot', txt: rotulo }),
+    h('input', { id:'f-' + campo, type:'text', value: valor ?? '' }));
+
+async function salvarFicha() {
+  const pega = (c) => $('#f-' + c)?.value ?? '';
+  const r = await post('/api/ficha', {
+    telefone: conversaAberta,
+    nome: pega('nome'),
+    nicho: pega('nicho'),
+    regiao: pega('regiao'),
+    tipo_cliente: pega('tipo_cliente'),
+  });
+  aviso(r.mensagem);
+  desenhar();
 }
 
 /* ─── PEDIDOS ────────────────────────────────────────────────────────── */

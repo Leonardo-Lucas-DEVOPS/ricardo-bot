@@ -183,6 +183,20 @@ async function rotear(req, res) {
     return responder(res, 200, listarEventos(url));
   }
 
+  // Corrigir o que a IA entendeu errado. Sem isto, um nicho errado seguia
+  // pro pedido e virava a planilha errada montada à mão.
+  if (rota === '/api/ficha' && req.method === 'POST') {
+    const { telefone, ...campos } = await lerCorpo(req);
+    if (!telefone) return responder(res, 400, { ok: false, mensagem: 'faltou o telefone' });
+
+    const banco = carregarBanco();
+    if (!banco.buscarContato(telefone)) {
+      return responder(res, 404, { ok: false, mensagem: 'contato não encontrado' });
+    }
+    banco.corrigirFicha(telefone, campos);
+    return responder(res, 200, { ok: true, mensagem: 'Ficha corrigida.' });
+  }
+
   if (rota === '/api/conversas') return responder(res, 200, listarConversas(url));
   if (rota === '/api/pedidos') return responder(res, 200, listarPedidos());
 

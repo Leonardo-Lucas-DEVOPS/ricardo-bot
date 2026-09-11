@@ -10,6 +10,8 @@ dados/*.db-journal
 dados/*.db-wal
 dados/*.db-shm
 dados/backup/
+dados/PRECISA-QR.txt
+dados/instrucoes-anterior/
 
 # Logs
 logs/

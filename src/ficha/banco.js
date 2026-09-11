@@ -219,6 +219,60 @@ export function atualizarFicha(tel, campos = {}) {
   return selContato.get(telefone);
 }
 
+/**
+ * Correção MANUAL da ficha — você consertando o que a IA entendeu errado.
+ *
+ * É uma função separada de `atualizarFicha` por causa do vazio, e a diferença
+ * importa:
+ *
+ *   • vazio vindo da IA   = "não descobri nesta troca"  → preserva o que tem
+ *   • vazio vindo de você = "está errado, apaga"        → grava NULL
+ *
+ * Sem isso não havia como corrigir um nicho errado — e o nicho errado é
+ * copiado pro pedido, ou seja, vira a planilha errada montada à mão.
+ */
+export function corrigirFicha(tel, campos = {}) {
+  const telefone = normalizar(tel);
+  const pares = Object.entries(campos).filter(([k]) => CAMPOS_FICHA.has(k));
+  if (!pares.length) return buscarContato(telefone);
+
+  const sets = pares.map(([k]) => `${k} = ?`).join(', ');
+  const valores = pares.map(([, v]) => {
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    return typeof v === 'number' ? v : String(v).trim();
+  });
+
+  db.prepare(`UPDATE contatos SET ${sets}, atualizado_em = ? WHERE telefone = ?`)
+    .run(...valores, agora(), telefone);
+
+  evento('ficha_corrigida', telefone, Object.fromEntries(pares));
+  log.info(`ficha de ${telefone} corrigida à mão: ${pares.map(([k]) => k).join(', ')}`);
+  return selContato.get(telefone);
+}
+
+/**
+ * Pausas que acabaram de vencer.
+ *
+ * Você assumiu a conversa, resolveu, e esqueceu. Duas horas depois o robô
+ * voltava a falar sozinho — no meio da conversa, sem avisar ninguém. Agora
+ * ele avisa.
+ *
+ * Limpa o campo ao devolver: é o que garante que o aviso saia uma vez só, e
+ * é semanticamente certo — a pausa acabou, então não há pausa.
+ */
+export function pausasQueExpiraram() {
+  const t = agora();
+  const vencidas = db
+    .prepare('SELECT * FROM contatos WHERE pausado_ate IS NOT NULL AND pausado_ate <= ?')
+    .all(t);
+
+  if (vencidas.length) {
+    db.prepare('UPDATE contatos SET pausado_ate = NULL, atualizado_em = ? WHERE pausado_ate <= ?')
+      .run(t, t);
+  }
+  return vencidas;
+}
+
 // ---------------------------------------------------------------------------
 //  lista negra — doc 11, §8
 // ---------------------------------------------------------------------------
