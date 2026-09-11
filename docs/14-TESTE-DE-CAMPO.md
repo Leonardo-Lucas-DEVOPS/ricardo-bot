@@ -264,21 +264,27 @@ Esta é a armadilha: o robô e você usam a mesma conta.
 4. Feche o programa e abra pelo ícone
 
 - [ ] ✅ **O dado voltou ao que era no backup**
-- [ ] Na pasta  existe um  — a restauração também dá pra desfazer
+- [ ] Na pasta `dados` apareceu um `ricardo.db.antes-da-restauracao` —
+      a própria restauração também dá pra desfazer
 
 ### 6.4 — Banco corrompido não derruba o programa
 
-*Verificado em bancada, mas vale conferir na sua máquina.*
+*Verificado em bancada. Vale repetir na sua máquina, porque é o cenário em
+que você mais precisa que o painel abra.*
 
 1. Feche o programa
-2. Abra a pasta , renomeie  para 
-3. Crie um arquivo de texto vazio chamado 
-4. Abra o programa
+2. Na pasta `dados`, renomeie `ricardo.db` para `ricardo.db.guardado`
+3. Crie no lugar um arquivo de texto vazio chamado `ricardo.db`
+4. Abra o programa pelo ícone
 
-- [ ] ✅ **O painel abre normalmente** (com banco vazio)
-- [ ]  registra que o banco estava corrompido
-- [ ] O arquivo defeituoso foi preservado como 
-5. Feche, apague o  novo, renomeie  de volta
+- [ ] ✅ **O painel abre normalmente**, com banco vazio
+- [ ] `logs\ALARME.log` diz que o banco estava corrompido
+- [ ] O arquivo defeituoso virou `ricardo.db.corrompido-...`
+
+5. Feche o programa, apague o `ricardo.db` vazio, e renomeie o
+   `ricardo.db.guardado` de volta para `ricardo.db`
+
+- [ ] Ao abrir, os dados estão lá de novo
 
 ---
 
