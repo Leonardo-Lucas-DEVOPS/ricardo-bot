@@ -14,8 +14,8 @@
 robô, e o **QR code aparece na tela inicial**. No celular do robô:
 WhatsApp → ⋮ → Aparelhos conectados → Conectar aparelho → aponte.
 
-Enquanto isso não acontecer ele não conecta com nada — e o log vai repetir
- pra sempre.
+Enquanto isso não acontecer ele não conecta com nada — e o log fica repetindo
+`connectionLost` pra sempre, que é fácil confundir com problema de internet.
 
 Depois disso: robô ligado, pareado, e a aba **Terminal** aberta
 (Ajustes ⚙ → Terminal). Não precisa do chip aquecido — isso é só pra quando
