@@ -33,8 +33,7 @@ Pela linha de comando, se preferir:
 ```bash
 npm install
 npm start
-npm run teste
-```
+undefined```
 
 ```bash
 npm run teste               # 16 testes das funções puras

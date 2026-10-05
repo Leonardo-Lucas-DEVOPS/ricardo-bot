@@ -1,3 +1,24 @@
+// ⛔ NÃO LIGUE ISTO AINDA — fora do escopo da v1.
+//
+// O arquivo está aqui como ponto de partida, não como código pronto. Uma
+// revisão achou 14 defeitos, e três deles quebram o freio que mais importa:
+//
+//   • setInterval sem trava de reentrância: o ciclo leva minutos (cada envio
+//     dorme 4s a 90s) e o tick seguinte entra em 60s. Os dois leem
+//     cutucadas_enviadas=0 e mandam a mesma cutucada. O "máximo 2 por
+//     pessoa" não segura.
+//   • o contador só sobe se enviar() devolver algo, e entregar() em bot.js
+//     não devolve nada — re-cutuca o mesmo lead a cada 60 segundos.
+//   • falta ehCutucada no payload, então o freio do M10 é código morto.
+//
+// Além disso: nenhum dos seis freios tem teste, e dois dos três textos de
+// CUTUCADA 2 chegam cortados no meio da frase pelo parser.
+//
+// Antes de ligar: corrigir os 14, escrever os testes, e começar só pela
+// recompra de 7 dias (que vai pra quem JÁ comprou — risco bem menor que
+// cutucar quem sumiu).
+//
+// ---------------------------------------------------------------------------
 // cutucador/index.js — M7, o follow-up.
 //
 // ⚠️ O doc 08 chama este de o módulo mais perigoso do sistema, e o doc 04 é

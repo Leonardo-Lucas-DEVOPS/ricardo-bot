@@ -36,7 +36,7 @@ já cortou a faixa gratuita sem aviso — ver doc **11, §2** e doc **12**.
 | **11** | [CONTRATOS](11-CONTRATOS.md) | O esquema do banco, o contrato da IA e as regras de decisão. Onde "mais ou menos" vira bug caro. | Antes de programar. É pra quem escreve código. |
 | **12** | [MELHORIAS](12-MELHORIAS.md) | O que a produção corrigiu no planejamento, e o backlog do que falta | Quando for planejar a próxima rodada |
 | **13** | [GUIA-DO-RICARDO](13-GUIA-DO-RICARDO.md) | **O único que você precisa no dia a dia.** Como ligar, o que olhar, o que fazer quando dá errado. | Todo dia. |
-| **14** | [TESTE-DE-CAMPO](14-TESTE-DE-CAMPO.md) | O roteiro com celular na mão. Separa "os testes passam" de "funciona". | **Antes do primeiro anúncio.** |
+| **14** | [TESTE-DE-CAMPO](14-TESTE-DE-CAMPO.md) | As 5 coisas que só um celular testa. 15 minutos. | Antes do primeiro anúncio. |
 
 ---
 
