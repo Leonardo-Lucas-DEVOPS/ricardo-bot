@@ -49,15 +49,48 @@ export function iniciarPainel() {
       log.info(`painel em http://localhost:${config.painel.porta}`);
       cumprir(servidor);
     });
-    servidor.on('error', (erro) => {
-      if (erro.code === 'EADDRINUSE') {
-        log.error(`a porta ${config.painel.porta} já está em uso — o painel não subiu`);
-      } else {
+    servidor.on('error', async (erro) => {
+      if (erro.code !== 'EADDRINUSE') {
         log.error({ erro: erro.message }, 'o painel não subiu');
+        return cumprir(null);
       }
-      cumprir(null);
+
+      // Porta ocupada quase sempre quer dizer "já está rodando" — você
+      // clicou no atalho duas vezes. Isso não é erro: é pra abrir o que já
+      // está de pé.
+      //
+      // Antes isto era fatal e silencioso: o atalho roda sem janela, então
+      // o segundo processo morria sem ninguém ver, o navegador abria o painel
+      // do processo VELHO, e o resultado era "cliquei e não aconteceu nada".
+      cumprir(await quemEstaNaPorta());
     });
   });
+}
+
+/**
+ * Quem está segurando a porta: outro Ricardo Bot, ou um estranho?
+ *
+ * @returns {'JA_RODANDO' | null}
+ */
+async function quemEstaNaPorta() {
+  try {
+    const r = await fetch(`http://localhost:${config.painel.porta}/api/estado`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    const corpo = await r.json();
+    if (corpo && 'botLigado' in corpo) {
+      log.info(`o Ricardo Bot já está rodando — abra http://localhost:${config.painel.porta}`);
+      return 'JA_RODANDO';
+    }
+  } catch {
+    // não respondeu, ou respondeu outra coisa
+  }
+
+  log.error(
+    `a porta ${config.painel.porta} está ocupada por outro programa. ` +
+      'Troque PAINEL_PORTA no .env, ou feche quem está usando.',
+  );
+  return null;
 }
 
 // ---------------------------------------------------------------------------

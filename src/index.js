@@ -170,8 +170,21 @@ async function principal() {
   });
 
   const servidor = await iniciarPainel();
+
+  // Já tem um Ricardo Bot de pé: sai quieto. Você clicou no atalho duas
+  // vezes, e o certo é usar o que já está rodando — não derrubar nem
+  // reclamar. O navegador que o atalho abre vai cair nele.
+  if (servidor === 'JA_RODANDO') {
+    log.info('saindo — quem atende é a instância que já estava no ar');
+    process.exit(0);
+  }
+
   if (!servidor) {
-    alarme('O painel não subiu', `a porta ${config.painel.porta} pode estar ocupada`);
+    alarme(
+      'O painel não subiu',
+      `a porta ${config.painel.porta} está ocupada por outro programa. ` +
+        'Troque PAINEL_PORTA no .env.',
+    );
     process.exit(1);
   }
 

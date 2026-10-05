@@ -638,7 +638,8 @@ async function subirRobo() {
     aoReceberDoDono,
     aoVerFromMe,
     aoMudarPresenca: (tel, presenca) => recepcao.presencaMudou(tel, presenca),
-    aoQR: (texto) => definir({ qr: texto, conectado: false }),
+    aoQR: (texto) => definir({ qr: texto, conectado: false, erroBot: null }),
+    aoDesistir: (recado) => definir({ erroBot: recado }),
     aoConectar: (numero) => {
       definir({ qr: null, conectado: true, numero });
       log.info('pronto: atendendo quem escrever a partir de agora');

@@ -7,7 +7,7 @@
 // troca-se este arquivo e mais nada (doc 03).
 
 import { rm } from 'node:fs/promises';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 
 import makeWASocket, {
   DisconnectReason,
@@ -147,12 +147,24 @@ export class Porteiro {
     this.tentativas += 1;
 
     if (this.tentativas > MAX_TENTATIVAS) {
-      alarme(
-        'WhatsApp fora do ar',
-        `${MAX_TENTATIVAS} reconexões seguidas falharam (${nomeMotivo}). ` +
-          'Confira a internet; se persistir, pode ser o Baileys desatualizado (doc 08, risco 7).',
-      );
-      evento('reconexao_desistiu', null, { tentativas: this.tentativas, motivo: nomeMotivo });
+      // Sem sessão salva, o QR expira e a conexão cai em `connectionLost`.
+      // Dizer "confira a internet" aqui manda a pessoa caçar o problema no
+      // lugar errado — aconteceu: o robô passou semanas repetindo isso, e o
+      // que faltava era ler o QR.
+      const nuncaPareou = !existsSync(config.pastas.sessao) ||
+        readdirSync(config.pastas.sessao).length === 0;
+
+      const recado = nuncaPareou
+        ? 'este celular nunca foi pareado. Abra o painel e leia o QR code — ' +
+          'enquanto isso não acontecer, ele não conecta.'
+        : `${MAX_TENTATIVAS} reconexões seguidas falharam (${nomeMotivo}). ` +
+          'Confira a internet; se persistir, pode ser o Baileys desatualizado (doc 08, risco 7).';
+
+      alarme(nuncaPareou ? 'WhatsApp não pareado' : 'WhatsApp fora do ar', recado);
+      this.ganchos.aoDesistir?.(recado);
+      evento('reconexao_desistiu', null, {
+        tentativas: this.tentativas, motivo: nomeMotivo, nuncaPareou,
+      });
       return;
     }
 

@@ -10,7 +10,14 @@
 
 ## Antes
 
-Robô ligado, pareado com um chip de teste, e a aba **Terminal** aberta
+**Pareie o celular primeiro.** Abra o painel, clique na chavinha pra ligar o
+robô, e o **QR code aparece na tela inicial**. No celular do robô:
+WhatsApp → ⋮ → Aparelhos conectados → Conectar aparelho → aponte.
+
+Enquanto isso não acontecer ele não conecta com nada — e o log vai repetir
+ pra sempre.
+
+Depois disso: robô ligado, pareado, e a aba **Terminal** aberta
 (Ajustes ⚙ → Terminal). Não precisa do chip aquecido — isso é só pra quando
 o anúncio ligar.
 
