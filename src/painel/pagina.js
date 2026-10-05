@@ -173,9 +173,8 @@ textarea{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
 .balao .qdo{font-size:11px;color:var(--txt3);margin-top:3px}
 
 /* ─── QR e terminal ──────────────────────────────────────────────────── */
-.qr{font-family:ui-monospace,Consolas,monospace;font-size:9px;line-height:9px;
-  white-space:pre;text-align:center;background:#fff;color:#000;padding:20px;
-  border-radius:var(--r);overflow-x:auto;overflow-y:hidden}
+.qr{display:block;box-sizing:border-box;width:100%;max-width:272px;height:auto;
+  margin:0 auto;background:#fff;padding:14px;border-radius:var(--r)}
 .terminal{background:var(--n900);color:#d8dade;font-family:ui-monospace,Consolas,monospace;
   font-size:12px;line-height:1.65;padding:16px;border-radius:var(--r);
   height:440px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
@@ -325,7 +324,16 @@ function heroi() {
       h('div', { cls:'selo', txt: icone }),
       h('div', { cls:'cresce' }, h('h1', { txt: titulo }), h('p', { txt: sub })),
       extra),
-    E.qr && h('div', { cls:'carta-corpo' }, h('div', { cls:'qr', txt: E.qr })));
+    E.qr && h('div', { cls:'carta-corpo' }, imagemQR()));
+}
+
+// O QR vem de /qr.svg como imagem de verdade — módulos quadrados, que a
+// camera do celular enxerga. Antes era arte ASCII num <div>, bonita de ver e
+// impossível de escanear. O token na query troca quando o WhatsApp renova o
+// código, e é isso que faz o navegador buscar o novo em vez do cacheado.
+function imagemQR() {
+  return h('img', { cls:'qr', src: '/qr.svg?v=' + encodeURIComponent(E.qr),
+                    alt: 'QR code para parear o WhatsApp' });
 }
 
 function cartaEntregas() {
@@ -849,7 +857,7 @@ function telaAssistente() {
     } else if (E.qr) {
       corpo.push(h('div', { cls:'sub-passo' }, 'No celular do robô: ',
           h('b', { txt:'WhatsApp → Aparelhos conectados → Conectar aparelho' })),
-        h('div', { cls:'qr', txt: E.qr }),
+        imagemQR(),
         h('div', { cls:'mini', style:'margin-top:12px', txt:'Assim que ler, esta tela avança sozinha.' }));
     } else {
       corpo.push(h('div', { cls:'sub-passo', txt:'O robô precisa estar ligado pra gerar o código.' }),

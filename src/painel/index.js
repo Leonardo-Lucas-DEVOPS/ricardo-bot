@@ -23,6 +23,7 @@ import { criarAtalho, atalhoExiste } from './atalho.js';
 import { bloquearManualmente } from '../seguranca/index.js';
 import { listarBackups, fazerBackup } from '../zelador/index.js';
 import { estado, lerLinhas, limparLinhas } from './estado.js';
+import { svgDoQR } from '../nucleo/qr.js';
 import { pagina } from './pagina.js';
 
 const SO_LOCALHOST = '127.0.0.1';
@@ -105,6 +106,21 @@ async function rotear(req, res) {
   }
 
   if (rota === '/api/estado') return responder(res, 200, montarEstado());
+
+  // O QR como imagem de verdade. Sem cache: o WhatsApp troca o código a cada
+  // ~20 segundos, e servir o anterior é mandar o dono escanear o que já venceu.
+  if (rota === '/qr.svg') {
+    const desenho = svgDoQR(estado.qr);
+    if (!desenho) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('nenhum QR no momento');
+    }
+    res.writeHead(200, {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'no-store, max-age=0',
+    });
+    return res.end(desenho);
+  }
 
   if (rota === '/api/config' && req.method === 'POST') {
     const corpo = await lerCorpo(req);
@@ -301,7 +317,7 @@ function montarEstado() {
   const base = {
     conectado: estado.conectado,
     numero: estado.numero,
-    qr: estado.qr,
+    qr: estado.qrToken,   // token curto; o desenho vem de /qr.svg
     botLigado: estado.botLigado,
     erroBot: estado.erroBot,
     subiuEm: estado.subiuEm ? paraExibir(estado.subiuEm) : null,

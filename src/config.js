@@ -85,7 +85,13 @@ export const config = {
     logs: resolve(RAIZ, 'logs'),
   },
 
-  banco: resolve(RAIZ, 'dados', 'ricardo.db'),
+  // RICARDO_BANCO existe pros testes, que precisam de um banco descartável.
+  // Sem isso eles abriam o banco de PRODUÇÃO: escreviam fichas de mentira nele
+  // e, com o robô no ar, brigavam pelo lock a ponto de disparar o alarme de
+  // banco corrompido. Ninguém deve mexer nisto fora de teste.
+  banco: process.env.RICARDO_BANCO
+    ? resolve(RAIZ, process.env.RICARDO_BANCO)
+    : resolve(RAIZ, 'dados', 'ricardo.db'),
   marcadorQR: resolve(RAIZ, 'dados', 'PRECISA-QR.txt'),
   arquivoAlarme: resolve(RAIZ, 'logs', 'ALARME.log'),
 

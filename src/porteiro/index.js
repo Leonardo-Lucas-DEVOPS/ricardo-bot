@@ -103,8 +103,9 @@ export class Porteiro {
     if (qr) {
       log.info('escaneie o QR abaixo com o celular do robô:');
       qrcode.generate(qr, { small: true });
-      // O mesmo QR vai pro painel: quem abre pelo atalho não vê terminal.
-      qrcode.generate(qr, { small: true }, (texto) => this.ganchos.aoQR?.(texto));
+      // Pro painel vai a carga CRUA, não a arte ASCII: lá ela vira um SVG de
+      // verdade. Bloco de texto em navegador o olho lê, mas a câmera não.
+      this.ganchos.aoQR?.(qr);
     }
 
     if (connection === 'open') {

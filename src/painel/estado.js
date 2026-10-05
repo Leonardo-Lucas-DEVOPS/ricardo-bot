@@ -8,7 +8,10 @@ export const estado = {
   // conexão com o WhatsApp
   conectado: false,
   numero: null,
-  qr: null,              // o QR em texto, quando está esperando leitura
+  // A carga crua que o WhatsApp mandou pra parear. Fica NESTE processo: quem
+  // vai pro navegador é o `qrToken` abaixo, e o desenho sai em /qr.svg.
+  qr: null,
+  qrToken: null,         // muda a cada QR novo — serve de "recarrega a imagem"
 
   // ciclo de vida do robô
   botLigado: false,
@@ -27,6 +30,22 @@ export const estado = {
 
 export function definir(campos) {
   Object.assign(estado, campos);
+
+  // O token acompanha o QR sozinho — ninguém precisa lembrar de atualizar os
+  // dois. QR novo, token novo, e o navegador troca a imagem.
+  if ('qr' in campos) {
+    estado.qrToken = campos.qr ? impressao(campos.qr) : null;
+  }
+}
+
+/** Oito caracteres que mudam quando a carga muda. Não precisa ser seguro —
+ *  precisa ser curto e diferente. */
+function impressao(texto) {
+  let n = 0;
+  for (let i = 0; i < texto.length; i += 1) {
+    n = (Math.imul(31, n) + texto.charCodeAt(i)) | 0;
+  }
+  return (n >>> 0).toString(36).padStart(7, '0');
 }
 
 export function definirAcoes(acoes) {

@@ -66,11 +66,30 @@ function aplicarRestauracaoPendente() {
  * um novo. Os dados não se perdem — estão no backup diário, e o arquivo
  * defeituoso fica guardado.
  */
+// Os dois únicos erros que significam "este arquivo não é mais um banco":
+//   11 SQLITE_CORRUPT — a imagem do disco está deformada
+//   26 SQLITE_NOTADB  — não é sequer um arquivo SQLite
+//
+// Qualquer outro código é problema passageiro. O 5 (SQLITE_BUSY, "database is
+// locked") em especial: o painel e o robô abrem este banco quase juntos, e o
+// segundo levava BUSY. Tratar isso como corrupção fazia a guarda tentar MOVER
+// um banco perfeitamente são pra escanteio — perda de dados por contenção de
+// lock. Só não aconteceu porque o Windows não renomeia arquivo em uso.
+const CORRUPCAO_DE_VERDADE = new Set([11, 26]);
+
+/** Exportada só pro teste: é esta decisão que resolve se o arquivo vai ser
+ *  movido pra escanteio, então ela merece prova. */
+export const ehCorrupcaoDeVerdade = (erro) => CORRUPCAO_DE_VERDADE.has(erro?.errcode);
+
 function abrirBanco() {
   let conexao = null;
 
   try {
     conexao = new DatabaseSync(config.banco);
+    // Antes da prova de vida, não depois: sem busy_timeout a consulta falha na
+    // hora se outro processo estiver escrevendo, e um banco ocupado não é um
+    // banco quebrado.
+    conexao.exec('PRAGMA busy_timeout = 5000');
     conexao.prepare('SELECT 1').get();   // prova de vida
     return conexao;
   } catch (erro) {
@@ -84,13 +103,24 @@ function abrirBanco() {
       // já estava ruim; seguir
     }
 
+    // Na dúvida, não mexa no arquivo. Deixa estourar: quem chamou decide.
+    if (!ehCorrupcaoDeVerdade(erro)) throw erro;
+
     const marca = new Date().toISOString().replace(/[:.]/g, '-');
     const defeituoso = `${config.banco}.corrompido-${marca}`;
     try {
       if (existsSync(config.banco)) renameSync(config.banco, defeituoso);
       for (const sufixo of ['-wal', '-shm']) rmSync(config.banco + sufixo, { force: true });
     } catch (moveu) {
+      // Corrompido E imóvel: abrir um novo por cima daria no mesmo erro, e o
+      // alarme mentiria dizendo que moveu. Melhor cair com a verdade.
       log.error({ erro: moveu.message }, 'não consegui mover o banco defeituoso');
+      alarme(
+        'O banco de dados está corrompido e travado',
+        `não consegui mover ${config.banco} (${moveu.message}). Feche tudo que ` +
+          'estiver usando o arquivo e abra o programa de novo.',
+      );
+      throw erro;
     }
 
     alarme(
@@ -100,6 +130,7 @@ function abrirBanco() {
     );
 
     const novo = new DatabaseSync(config.banco);
+    novo.exec('PRAGMA busy_timeout = 5000');
     novo.prepare('SELECT 1').get();
     return novo;
   }
@@ -109,11 +140,11 @@ aplicarRestauracaoPendente();
 
 export const db = abrirBanco();
 
-// A ORDEM AQUI IMPORTA, e custou um bug pra descobrir.
+// A ORDEM AQUI IMPORTA, e custou dois bugs pra descobrir.
 //
-// `busy_timeout` vem PRIMEIRO: sem ele, qualquer PRAGMA que precise de lock
-// exclusivo falha na hora em vez de esperar.
-db.exec('PRAGMA busy_timeout = 5000');
+// `busy_timeout` vem PRIMEIRO — tão primeiro que agora é a primeira coisa que
+// `abrirBanco` faz, antes até da prova de vida. Sem ele, qualquer coisa que
+// precise de lock falha na hora em vez de esperar.
 db.exec('PRAGMA foreign_keys = ON');
 
 // Trocar o journal para WAL exige lock exclusivo. Como o painel e o robô são

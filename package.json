@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "teste": "node --test",
+    "teste": "node testes/rodar.mjs",
     "ensaio": "node testes/ensaio.mjs",
     "bot": "node src/bot.js"
   },
