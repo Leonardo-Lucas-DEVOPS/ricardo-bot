@@ -755,8 +755,8 @@ async function telaSobre() {
                   E.backups.map((x) => h('option', { value: x.arquivo,
                     txt: x.arquivo + ' (' + (x.bytes / 1024).toFixed(0) + ' KB)' }))),
                 h('button', { cls:'b risco', txt:'Restaurar', onclick: () => confirmar(
-                  'Voltar o banco para este backup?\n\n' +
-                  'Tudo que aconteceu DEPOIS dele — conversas, pedidos — sai do ar.\n' +
+                  'Voltar o banco para este backup?\\n\\n' +
+                  'Tudo que aconteceu DEPOIS dele — conversas, pedidos — sai do ar.\\n' +
                   'O banco de agora fica guardado, então dá pra desfazer.',
                   restaurarBackup) })),
               h('div', { cls:'mini', style:'margin-top:8px' },
