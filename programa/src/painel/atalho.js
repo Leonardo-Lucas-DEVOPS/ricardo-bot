@@ -29,7 +29,7 @@ export async function criarAtalho({ naAreaDeTrabalho = true, comOWindows = false
     return { ok: false, mensagem: 'Atalho automático só no Windows.' };
   }
   if (!existsSync(LANCADOR)) {
-    return { ok: false, mensagem: 'Não achei o "Iniciar Ricardo Bot.bat" na pasta do projeto.' };
+    return { ok: false, mensagem: 'Não achei o "Ricardo Bot.vbs" na pasta programa/.' };
   }
 
   const destinos = [];

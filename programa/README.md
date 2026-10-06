@@ -9,13 +9,28 @@ Node, 4 dependências, SQLite local, Gemini. Roda numa máquina Windows em casa.
 
 ## Rodar
 
-Duplo clique em **`Ricardo Bot.vbs`** — sobe sem janela nenhuma e abre o painel
-em `localhost:3100`. Na primeira vez um assistente de 5 passos pede a chave do
-Gemini, seu WhatsApp, o PIX e o QR.
+Na pasta de cima, **fora** daqui, tem dois arquivos — e é só isso que um PC
+novo precisa:
+
+```
+Iniciar Ricardo Bot.bat     confere o que falta, instala, e sobe
+Criar atalho.bat            põe o ícone na Área de Trabalho (opcional)
+programa\                   isto aqui: todo o resto
+```
+
+**`Iniciar Ricardo Bot.bat`** resolve a máquina inteira sozinho: se não houver
+Node.js ele oferece instalar, se faltarem as bibliotecas ele baixa, e então
+sobe o robô sem janela nenhuma e abre o painel em `localhost:3100`. Na primeira
+vez um assistente de 5 passos pede a chave do Gemini, seu WhatsApp, o PIX e o QR.
+
+Por que a pasta `programa/` existe: pra que quem descompacta o zip veja dois
+arquivos com nome em português e nada mais. O resto é tripa.
+
+Pra desenvolver, de dentro de `programa/`:
 
 ```bash
 npm start            # o supervisor (painel + robô)
-npm run teste        # 72 testes de lógica, não gasta IA
+npm run teste        # 87 testes, não gasta IA
 npm run ensaio       # conversa completa contra o Gemini real (~8 chamadas)
 npm run bot          # só o robô, sem painel — pra depurar
 ```
