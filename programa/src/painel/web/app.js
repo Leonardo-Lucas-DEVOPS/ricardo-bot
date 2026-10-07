@@ -636,6 +636,72 @@ function telaTerminal() {
   ];
 }
 
+/* ─── cartão de atualização ──────────────────────────────────────────── */
+/*
+ * Mostra o que vai acontecer ANTES de acontecer, e diz em letra visível o
+ * que não será tocado. "Atualizar" num programa que guarda conversas de
+ * cliente e a sessão do WhatsApp é um botão que dá medo — com razão, se
+ * ninguém disser o que ele preserva.
+ */
+async function cartaoAtualizacao() {
+  const d = await api('/api/atualizacao');
+
+  if (!d.repo) {
+    return h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Atualização' })),
+      h('div', { cls:'carta-corpo' },
+        h('div', { cls:'fraco' },
+          'Nenhum repositório configurado. Preencha ',
+          h('b', { txt:'Repositório das atualizações' }),
+          ' em Configuração pra ligar o botão.')));
+  }
+
+  const linhas = [];
+  if (d.temNova) {
+    linhas.push(h('div', { cls:'faixa ok', style:'margin:0 0 14px' },
+      h('div', null,
+        h('b', { txt:'Versão nova disponível: ' + (d.disponivel.curto || '') + '. ' }),
+        d.disponivel.mensagem || '')));
+  } else if (d.disponivel.ok) {
+    linhas.push(h('div', { cls:'fraco', style:'margin-bottom:14px',
+                           txt:'Você está na versão mais recente.' }));
+  } else {
+    linhas.push(h('div', { cls:'faixa atencao', style:'margin:0 0 14px' },
+      h('div', { txt: d.disponivel.mensagem })));
+  }
+
+  return h('div', { cls:'carta' },
+    h('div', { cls:'carta-topo' }, h('h2', { txt:'Atualização' }),
+      h('span', { cls:'conta', txt: d.instalada.curto || 'primeira' })),
+    h('div', { cls:'carta-corpo' },
+      linhas,
+      h('div', { cls:'mini', style:'margin-bottom:14px' },
+        'O que é seu não é tocado: ',
+        h('b', { txt:'.env' }), ' (chaves e PIX), ',
+        h('b', { txt:'dados/' }), ' (conversas, pedidos, sessão do WhatsApp) e ',
+        h('b', { txt:'instrucoes/' }), ' (preços e identidade).'),
+      h('div', { cls:'fila' },
+        h('button', { cls:'b forte', txt:'Atualizar agora', disabled: !d.temNova,
+                      onclick: () => confirmar('Atualizar o programa?',
+                        () => executarAtualizacao('/api/atualizar', 'Atualizando…'),
+                        { rotulo:'Atualizar', tom:'forte',
+                          corpo:'O robô desliga, o código é trocado e ele volta. '
+                              + 'Suas configurações, conversas e instruções ficam como estão.' }) }),
+        d.podeDesfazer
+          ? h('button', { cls:'b vazio', txt:'Desfazer a última',
+                          onclick: () => confirmar('Voltar para a versão anterior?',
+                            () => executarAtualizacao('/api/desfazer-atualizacao', 'Voltando…'),
+                            { rotulo:'Voltar', tom:'forte' }) })
+          : null)));
+}
+
+async function executarAtualizacao(rota, dizendo) {
+  aviso(dizendo + ' isso leva um minuto.', 'info');
+  const r = await post(rota, {});
+  aviso(r.mensagem || (r.ok ? 'Pronto.' : 'Não deu.'), r.ok ? 'ok' : 'mal');
+  desenhar();
+}
+
 /* ─── AJUSTES: follow-up ─────────────────────────────────────────────── */
 /*
  * A tela do módulo que o doc 08 chama de mais perigoso do sistema.
@@ -771,6 +837,7 @@ async function telaSobre() {
   ]);
   const b = E.backups?.[0];
   return [
+    await cartaoAtualizacao(),
     // Os alarmes primeiro: são os avisos mais graves do sistema, e até agora
     // só existiam num arquivo em disco que ninguém abre.
     (al.alarmes || []).length

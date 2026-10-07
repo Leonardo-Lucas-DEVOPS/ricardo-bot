@@ -131,6 +131,10 @@ export const config = {
   cutucadas: { ligadas: bool('CUTUCADAS_LIGADAS', false) },
   painel: { porta: numero('PAINEL_PORTA', 3100) },
 
+  // De onde vem a atualizacao. "dono/repo" ou a URL inteira — o atualizador
+  // aceita as duas. Vazio = botao de atualizar desligado.
+  atualizacao: { repo: texto('REPOSITORIO', '') },
+
   // --- Números que o dossiê definiu, agrupados pra não ficarem soltos no código ---
 
   recepcao: {

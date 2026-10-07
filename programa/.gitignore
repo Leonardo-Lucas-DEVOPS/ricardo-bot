@@ -16,6 +16,14 @@ dados/backup/
 dados/PRECISA-QR.txt
 dados/instrucoes-anterior/
 
+# Suas instrucoes: preços, identidade, como responder objeção. E o SEU
+# negocio, e o repositorio e publico. O que vai versionado e
+# `instrucoes-exemplo/`, um molde neutro — na primeira execucao o programa
+# copia de la pra ca.
+#
+# Isto tambem e o que faz o botao de atualizar nunca encostar no seu texto.
+instrucoes/
+
 # Logs
 logs/
 

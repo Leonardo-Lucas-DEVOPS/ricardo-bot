@@ -1,11 +1,17 @@
 # TABELA DE PACOTES
 
-  1.000 leads .......... R$  39,00
-  2.000 leads .......... R$  50,00
-  3.000 leads .......... R$  79,90
-  5.000 leads .......... R$ 100,00
- 50.000 leads .......... R$ 350,00
-100.000 leads .......... R$ 700,00
+TROQUE PELOS SEUS PRECOS. Os valores abaixo sao so um exemplo do
+FORMATO — e o formato importa: quem le esta tabela e um regex.
+
+Regras do formato, aprendidas na marra:
+  - numero, a palavra "leads", enchimento, R$ e o valor
+  - NAO comece a linha com hifen: o leitor perde a linha e o pacote
+    some da tabela sem dar erro nenhum
+  - confira em Sobre -> "Tabela de precos, como o robo le"
+
+  1.000 leads .......... R$  50,00
+  5.000 leads .......... R$ 150,00
+ 10.000 leads .......... R$ 250,00
 
 # COMO RECOMENDAR
 

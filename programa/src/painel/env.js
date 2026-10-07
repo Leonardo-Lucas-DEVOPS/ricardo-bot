@@ -33,6 +33,9 @@ export const CAMPOS = [
   { chave: 'CUTUCADAS_LIGADAS', rotulo: 'Follow-up ligado', tipo: 'sim_nao', grupo: 'operacao', padrao: 'true' },
   { chave: 'AUDIO_TRANSCRICAO', rotulo: 'Transcrever áudio', tipo: 'sim_nao', grupo: 'operacao', padrao: 'true' },
   { chave: 'AUDIO_MAX_SEGUNDOS', rotulo: 'Áudio máximo (segundos)', tipo: 'numero', grupo: 'operacao', padrao: '120' },
+  { chave: 'REPOSITORIO', rotulo: 'Repositório das atualizações', tipo: 'texto',
+    grupo: 'operacao', padrao: '',
+    ajuda: 'dono/repo no GitHub. Deixe vazio pra desligar o botão de atualizar.' },
   { chave: 'PAINEL_PORTA', rotulo: 'Porta do painel', tipo: 'numero', grupo: 'operacao', padrao: '3100' },
 ];
 

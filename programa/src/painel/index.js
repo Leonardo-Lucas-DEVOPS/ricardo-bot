@@ -25,6 +25,8 @@ import { listarBackups, fazerBackup } from '../zelador/index.js';
 import { estado, lerLinhas, limparLinhas } from './estado.js';
 import { svgDoQR } from '../nucleo/qr.js';
 import { lerTabela, formatarReal } from '../cerebro/precos.js';
+import { versaoInstalada, versaoDisponivel, atualizar, desfazer, temComoDesfazer }
+  from '../atualizador/index.js';
 import { pagina } from './pagina.js';
 
 const SO_LOCALHOST = '127.0.0.1';
@@ -385,6 +387,36 @@ async function rotear(req, res) {
     return responder(res, 200, {
       ligado, soRecompra: true, fila, recompra, enviadas, recompras,
     });
+  }
+
+  // Atualizacao: versao instalada, versao disponivel, e se da pra desfazer.
+  if (rota === '/api/atualizacao') {
+    const instalada = versaoInstalada();
+    const disponivel = config.atualizacao.repo ? await versaoDisponivel()
+                                               : { ok: false, mensagem: 'Nenhum repositorio configurado.' };
+    return responder(res, 200, {
+      repo: config.atualizacao.repo || null,
+      instalada,
+      disponivel,
+      temNova: Boolean(disponivel.ok && disponivel.sha && disponivel.sha !== instalada.sha),
+      podeDesfazer: temComoDesfazer(),
+    });
+  }
+
+  if (rota === '/api/atualizar' && req.method === 'POST') {
+    // O robo e desligado antes e religado depois: trocar `src/` debaixo de um
+    // processo rodando deixa metade do codigo velho e metade novo na memoria.
+    return responder(res, 200, await atualizar({
+      antes: () => estado.acoes.desligar?.(),
+      depois: () => estado.acoes.ligar?.(),
+    }));
+  }
+
+  if (rota === '/api/desfazer-atualizacao' && req.method === 'POST') {
+    return responder(res, 200, await desfazer({
+      antes: () => estado.acoes.desligar?.(),
+      depois: () => estado.acoes.ligar?.(),
+    }));
   }
 
   if (rota === '/api/alarmes') {

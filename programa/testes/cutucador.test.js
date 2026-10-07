@@ -37,7 +37,9 @@ const limpar = () => {
 /** Um lead que conversou de verdade: escreveu, o robô respondeu, ele respondeu. */
 function leadQueRespondeu(n, { minutosAtras = 60 } = {}) {
   const t = tel(n);
-  registrarQuemEscreveu({ telefone: t, jid: t + '@s.whatsapp.net', nome: 'Lead ' + n });
+  // Nome exclusivo deste arquivo: os testes rodam em paralelo no mesmo
+  // banco, e 'Lead' colidia com a busca do conversas.test.js.
+  registrarQuemEscreveu({ telefone: t, jid: t + '@s.whatsapp.net', nome: 'AlvoM7 ' + n });
   gravarMensagem({ telefone: t, autor: 'lead', texto: 'oi', waId: 'a' + n });
   gravarMensagem({ telefone: t, autor: 'robo', texto: 'ola!', waId: 'b' + n });
   gravarMensagem({ telefone: t, autor: 'lead', texto: 'quanto custa?', waId: 'c' + n });

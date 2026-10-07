@@ -37,7 +37,7 @@ function semear(quantos) {
   limpar();
   for (let i = 0; i < quantos; i += 1) {
     const t = tel(i);
-    registrarQuemEscreveu({ telefone: t, jid: t + '@s.whatsapp.net', nome: 'Lead ' + i });
+    registrarQuemEscreveu({ telefone: t, jid: t + '@s.whatsapp.net', nome: 'ContatoCv ' + i });
     // ultima_mensagem decrescente: o 0 é o mais recente
     db.prepare('UPDATE contatos SET ultima_mensagem = ? WHERE telefone = ?')
       .run(new Date(Date.now() - i * 60_000).toISOString(), t);
@@ -96,8 +96,8 @@ test('a paginação não pula nem repete ninguém', (t) => {
   t.after(limpar);
   semear(120);
 
-  const p0 = consulta('?busca=Lead&pagina=0');
-  const p1 = consulta('?busca=Lead&pagina=1');
+  const p0 = consulta('?busca=ContatoCv&pagina=0');
+  const p1 = consulta('?busca=ContatoCv&pagina=1');
 
   assert.equal(p0.contatos.length, 50);
   assert.equal(p0.temMais, true);
@@ -111,7 +111,7 @@ test('a última página avisa que acabou', (t) => {
   t.after(limpar);
   semear(60);
 
-  const ultima = consulta('?busca=Lead&pagina=1');
+  const ultima = consulta('?busca=ContatoCv&pagina=1');
   assert.equal(ultima.temMais, false, 'sem isso o botão "próximos" nunca desliga');
 });
 
@@ -130,7 +130,7 @@ test('o total conta tudo que casa, não só a página', (t) => {
   t.after(limpar);
   semear(120);
 
-  const r = consulta('?busca=Lead&pagina=0');
+  const r = consulta('?busca=ContatoCv&pagina=0');
   assert.equal(r.total, 120, 'o total é o que alimenta o "x–y de N" do rodapé');
   assert.equal(r.contatos.length, 50);
 });

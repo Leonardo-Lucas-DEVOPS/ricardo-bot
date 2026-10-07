@@ -5,12 +5,42 @@
 // vezes. Se cada ajuste exigisse parar o robô, você pararia de ajustar — e o
 // ajuste é o que faz o projeto funcionar, não o código (doc 01, trava 2).
 
-import { readFileSync, existsSync, watch } from 'node:fs';
+import { readFileSync, existsSync, watch, mkdirSync, readdirSync, copyFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { config } from '../config.js';
+import { config, RAIZ } from '../config.js';
 import { log } from '../nucleo/log.js';
 import { evento } from '../ficha/banco.js';
+
+/**
+ * Primeira execução: cria `instrucoes/` a partir de `instrucoes-exemplo/`.
+ *
+ * `instrucoes/` saiu do git porque é o SEU negócio — preços, identidade, como
+ * responder objeção — e o repositório é público. O que fica versionado é o
+ * molde neutro.
+ *
+ * É também o que faz a atualização nunca encostar no seu texto: o que o git
+ * não rastreia, o atualizador não sobrescreve. E a cópia é arquivo por
+ * arquivo, só do que falta — se você apagou um de propósito, ele volta; se
+ * editou, fica como está.
+ */
+function semearInstrucoes() {
+  try {
+    const molde = resolve(RAIZ, 'instrucoes-exemplo');
+    if (!existsSync(molde)) return;
+    mkdirSync(config.pastas.instrucoes, { recursive: true });
+
+    for (const nome of readdirSync(molde)) {
+      if (!nome.endsWith('.md')) continue;
+      const destino = resolve(config.pastas.instrucoes, nome);
+      if (existsSync(destino)) continue;
+      copyFileSync(resolve(molde, nome), destino);
+      log.warn(`instrucoes/${nome} criado a partir do exemplo — revise antes de usar`);
+    }
+  } catch (erro) {
+    log.error({ erro: erro.message }, 'não consegui criar as instruções a partir do exemplo');
+  }
+}
 
 // A ordem importa: o que vem por último pesa mais. `6-nunca-faca` fica no fim
 // de propósito — é a última coisa que a IA lê antes de responder (doc 06).
@@ -94,6 +124,7 @@ export class Persona {
 
   /** Carga inicial. Se algum arquivo essencial faltar, o robô não deve subir. */
   carregar() {
+    semearInstrucoes();
     const problemas = [];
 
     for (const nome of TODOS) {
