@@ -24,6 +24,7 @@ import { bloquearManualmente } from '../seguranca/index.js';
 import { listarBackups, fazerBackup } from '../zelador/index.js';
 import { estado, lerLinhas, limparLinhas } from './estado.js';
 import { svgDoQR } from '../nucleo/qr.js';
+import { lerTabela, formatarReal } from '../cerebro/precos.js';
 import { pagina } from './pagina.js';
 
 const SO_LOCALHOST = '127.0.0.1';
@@ -317,6 +318,39 @@ async function rotear(req, res) {
     return responder(res, 200, await falarComORobo('status', {}));
   }
 
+  // A tabela de preços INTERPRETADA, não o texto cru.
+  //
+  // A aba Instruções deixa editar `3-precos.md` numa caixa de texto e salvar.
+  // Só que quem lê aquilo é um regex: uma linha fora do formato não dá erro —
+  // o pacote simplesmente some da tabela, e a IA passa a recusar um valor que
+  // você jura que cadastrou. Aqui você vê o que o código entendeu.
+  if (rota === '/api/precos') {
+    const caminho = resolve(config.pastas.instrucoes, '3-precos.md');
+    const texto = existsSync(caminho) ? readFileSync(caminho, 'utf8') : '';
+    const tabela = lerTabela(texto);
+    return responder(res, 200, {
+      tabela: tabela.map((p) => ({
+        pacote: p.pacote,
+        centavos: p.centavos,
+        exibir: formatarReal(p.centavos),
+        porLead: formatarReal(Math.round(p.centavos / p.pacote)),
+      })),
+      // Linhas que parecem preço e o leitor não pegou: é aqui que o erro mora.
+      suspeitas: linhasSuspeitas(texto, tabela),
+    });
+  }
+
+  // O ALARME.log na tela. Até agora ele só existia em disco — os avisos mais
+  // graves do sistema (banco corrompido, WhatsApp fora do ar, robô caído 10
+  // vezes) ficavam num arquivo que ninguém abre.
+  if (rota === '/api/alarmes') {
+    const caminho = config.arquivoAlarme;
+    if (!existsSync(caminho)) return responder(res, 200, { alarmes: [] });
+    const linhas = readFileSync(caminho, 'utf8')
+      .split('\n').map((l) => l.trim()).filter(Boolean);
+    return responder(res, 200, { alarmes: linhas.slice(-40).reverse() });
+  }
+
   // Havia aqui um POST /api/reiniciar que nenhuma tela chamava: a página
   // reinicia por /api/motor desde a separação dos processos. Rota que ninguém
   // chama é superfície aberta sem dono — alguém lê e acha que é o caminho
@@ -404,6 +438,39 @@ function contarTudo() {
         try { return s + (JSON.parse(e.detalhe)?.tokens_total ?? 0); } catch { return s; }
       }, 0),
   };
+}
+
+/**
+ * Linhas que CHEIRAM a preço e o leitor da tabela não pegou.
+ *
+ * É o erro mais traiçoeiro da aba Instruções: `lerTabela` é um regex, e linha
+ * fora do formato não dá erro nenhum — o pacote só some. Depois a IA recusa
+ * um valor que você jura que cadastrou, e não há nada no log explicando.
+ *
+ * Exportada pro teste junto com o resto.
+ */
+export function linhasSuspeitas(texto, tabela) {
+  const pegos = new Set(tabela.map((p) => p.pacote));
+  const fora = [];
+
+  for (const linha of String(texto ?? '').split('\n')) {
+    const limpa = linha.trim();
+    if (!limpa || limpa.startsWith('#')) continue;
+
+    // Tem número grande (um pacote) E algo com cara de dinheiro?
+    const temPacote = /\b\d{1,3}(?:\.\d{3})+\b|\b\d{4,}\b/.test(limpa);
+    const temPreco = /R\$|\breais?\b/i.test(limpa);
+    if (!temPacote || !temPreco) continue;
+
+    // Se algum número dessa linha virou pacote na tabela, ela foi lida.
+    const numeros = [...limpa.matchAll(/\b[\d.]{3,}\b/g)]
+      .map((m) => Number.parseInt(m[0].replace(/\./g, ''), 10))
+      .filter(Number.isFinite);
+    if (numeros.some((n) => pegos.has(n))) continue;
+
+    fora.push(limpa.slice(0, 120));
+  }
+  return fora;
 }
 
 // Exportada pro teste: e SQL montado na mao, com filtro, busca e pagina.
@@ -633,6 +700,37 @@ async function executarAcao({ acao, alvo, ...extra }) {
       return r.ok
         ? { ok: true, mensagem: `Pedido #${r.pedido.numero} marcado como ${nome}.` }
         : { ok: false, mensagem: `Não deu: ${r.motivo}` };
+    }
+
+    // Voltar um pedido pra "novo". `mudarStatus` sempre aceitou qualquer
+    // status válido; a tela só oferecia os caminhos pra frente, então um
+    // pedido marcado "pago" por engano não tinha volta pelo painel.
+    case 'novo': {
+      const r = carregarPedidos().mudarStatus(alvo, 'novo');
+      return r.ok
+        ? { ok: true, mensagem: `Pedido #${r.pedido.numero} voltou para "novo".` }
+        : { ok: false, mensagem: `Não deu: ${r.motivo}` };
+    }
+
+    // Criar pedido na mão. Acontece quando o fechamento sai por fora do robô
+    // — você falou com o lead por telefone, por exemplo. O valor continua
+    // vindo da TABELA, nunca digitado: é a mesma trava que impede a IA de
+    // inventar preço (doc 11, §6).
+    case 'criar_pedido': {
+      const caminho = resolve(config.pastas.instrucoes, '3-precos.md');
+      const tabela = lerTabela(existsSync(caminho) ? readFileSync(caminho, 'utf8') : '');
+      if (!tabela.length) {
+        return { ok: false, mensagem: 'A tabela de preços está vazia — confira Instruções → 3-precos.md.' };
+      }
+      const r = carregarPedidos().criar({
+        telefone: alvo, pacote: Number(extra?.pacote), tabela,
+      });
+      if (!r.ok) {
+        const porque = { contato_inexistente: 'não conheço este número',
+                         pacote_inexistente: 'esse pacote não está na tabela' }[r.motivo] || r.motivo;
+        return { ok: false, mensagem: `Não deu: ${porque}.` };
+      }
+      return { ok: true, mensagem: `Pedido #${r.pedido.numero} criado.` };
     }
 
     case 'recarregar':

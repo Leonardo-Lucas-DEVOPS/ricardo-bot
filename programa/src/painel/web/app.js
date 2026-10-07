@@ -38,6 +38,7 @@ let buscaConversa = '';
 let filtroConversa = 'todos';
 let paginaConversa = 0;
 let relogioBusca = 0;
+let precosEmCache = [];
 
 /* O menu inteiro de uma vez, em dois grupos.
  *
@@ -430,7 +431,8 @@ async function salvarFicha() {
 
 /* ─── PEDIDOS ────────────────────────────────────────────────────────── */
 async function telaPedidos() {
-  const d = await api('/api/pedidos');
+  const [d, p] = await Promise.all([api('/api/pedidos'), api('/api/precos')]);
+  precosEmCache = p.tabela || [];
   const grupo = (titulo, lista, rotulo, acao) => !lista.length ? null :
     h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' }, h('h2', { txt: titulo }),
@@ -467,8 +469,38 @@ async function telaPedidos() {
             onclick: () => agir('nao_pago', Number($('#ped-alvo').value)) }),
           h('button', { cls:'b risco', txt:'Cancelar pedido',
             onclick: () => confirmar('Cancelar este pedido?',
-              () => agir('cancelado', Number($('#ped-alvo').value))) })))));
+              () => agir('cancelado', Number($('#ped-alvo').value))) }),
+          // Desfazer. `mudarStatus` sempre aceitou qualquer status válido; a
+          // tela só oferecia caminho pra frente, então "pago" por engano não
+          // tinha volta pelo painel.
+          h('button', { cls:'b vazio', txt:'Voltar para novo',
+            onclick: () => confirmar('Voltar este pedido para "novo"?',
+              () => agir('novo', Number($('#ped-alvo').value)),
+              { rotulo:'Voltar', tom:'forte',
+                corpo:'Serve pra desfazer um "entregue" ou "pago" marcado por engano.' }) })))));
   }
+
+  // Criar pedido na mão: o fechamento saiu por fora do robô (você falou por
+  // telefone, por exemplo) e o pedido precisa existir mesmo assim.
+  blocos.push(h('div', { cls:'carta' },
+    h('div', { cls:'carta-topo' }, h('h2', { txt:'Lançar um pedido na mão' })),
+    h('div', { cls:'carta-corpo' },
+      h('div', { cls:'fraco', style:'margin-bottom:12px' },
+        'O valor vem da tabela de preços, nunca digitado — a mesma trava que ' +
+        'impede a IA de inventar valor.'),
+      h('div', { cls:'fila', style:'align-items:flex-end' },
+        h('label', { cls:'campo', style:'margin:0;flex:1;min-width:170px' },
+          h('span', { cls:'rot', txt:'Telefone do cliente' }),
+          h('input', { id:'np-tel', type:'text', placeholder:'5519999998888' })),
+        h('label', { cls:'campo', style:'margin:0;width:150px' },
+          h('span', { cls:'rot', txt:'Pacote' }),
+          h('select', { id:'np-pacote' },
+            (precosEmCache || []).map((p) => h('option', { value:String(p.pacote),
+              txt: p.pacote.toLocaleString('pt-BR') + ' · ' + p.exibir })))),
+        h('button', { cls:'b forte', txt:'Criar pedido', onclick: criarPedido })),
+      (precosEmCache || []).length ? null
+        : h('div', { cls:'mini', style:'margin-top:8px',
+                     txt:'Nenhum pacote na tabela — confira Instruções → 3-precos.md.' }))));
 
   return blocos.length ? blocos
     : [h('div', { cls:'carta' }, vazio('📋', 'Nenhum pedido ainda.'))];
@@ -655,9 +687,43 @@ function detalhinho(bruto) {
 
 /* ─── AJUSTES: sobre ─────────────────────────────────────────────────── */
 async function telaSobre() {
-  const a = await api('/api/atalho');
+  const [a, precos, al] = await Promise.all([
+    api('/api/atalho'), api('/api/precos'), api('/api/alarmes'),
+  ]);
   const b = E.backups?.[0];
   return [
+    // Os alarmes primeiro: são os avisos mais graves do sistema, e até agora
+    // só existiam num arquivo em disco que ninguém abre.
+    (al.alarmes || []).length
+      ? h('div', { cls:'carta' },
+          h('div', { cls:'carta-topo' }, h('h2', { txt:'Alarmes' }),
+            h('span', { cls:'conta', txt: String(al.alarmes.length) })),
+          al.alarmes.slice(0, 8).map((linha) =>
+            h('div', { cls:'item' }, h('div', { cls:'mini cresce', txt: linha }))))
+      : null,
+
+    // A tabela como o CÓDIGO a entendeu — não o texto que você escreveu.
+    // `lerTabela` é um regex: linha fora do formato não dá erro, o pacote só
+    // some. Depois a IA recusa um valor que você jura ter cadastrado.
+    h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Tabela de preços, como o robô lê' }),
+        h('span', { cls:'conta', txt: String((precos.tabela || []).length) })),
+      (precos.suspeitas || []).length
+        ? h('div', { cls:'carta-corpo' },
+            h('div', { cls:'faixa atencao', style:'margin:0' },
+              h('div', null,
+                h('b', { txt: precos.suspeitas.length + ' linha(s) com cara de preço que não foram lidas. ' }),
+                'Confira o formato em Instruções → 3-precos.md:',
+                precos.suspeitas.map((s) => h('div', { cls:'mini', style:'margin-top:4px', txt: '· ' + s })))))
+        : null,
+      (precos.tabela || []).length
+        ? precos.tabela.map((p) => h('div', { cls:'item' },
+            h('div', { cls:'cresce' },
+              h('div', { cls:'titulo', txt: p.pacote.toLocaleString('pt-BR') + ' leads' }),
+              h('div', { cls:'mini', txt: p.porLead + ' por lead' })),
+            h('div', { cls:'forte', txt: p.exibir })))
+        : vazio('💰', 'Nenhum pacote foi lido. O robô não vai conseguir fechar pedido.')),
+
     h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' }, h('h2', { txt:'Atalho' })),
       h('div', { cls:'carta-corpo' },
@@ -898,6 +964,17 @@ async function agir(acao, alvo, extra) {
   const r = await post('/api/acao', { acao, alvo, ...extra });
   if (r.mensagem) aviso(r.mensagem, r.ok === false ? 'mal' : 'ok');
   desenhar();
+}
+
+async function criarPedido() {
+  const tel = ($('#np-tel')?.value || '').trim();
+  const pacote = Number($('#np-pacote')?.value);
+  if (!tel) return aviso('Falta o telefone do cliente.', 'atencao');
+  if (!pacote) return aviso('Escolha um pacote.', 'atencao');
+
+  const r = await post('/api/acao', { acao:'criar_pedido', alvo: tel, pacote });
+  aviso(r.mensagem, r.ok ? 'ok' : 'mal');
+  if (r.ok) desenhar();
 }
 
 /* Responder o lead sem sair do painel. */

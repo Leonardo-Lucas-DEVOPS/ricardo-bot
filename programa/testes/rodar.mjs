@@ -19,10 +19,18 @@ import { fileURLToPath } from 'node:url';
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BANCO = 'dados/teste.db';
 
+// Os alarmes também vão pra um canto descartável. A suíte corrompe um banco
+// de propósito pra provar a guarda, e cada corrida gravava um "banco
+// corrompido" no ALARME.log de verdade. Ninguém via, porque ninguém abre esse
+// arquivo — até os alarmes irem pra tela do painel, e aparecerem 25 avisos
+// graves que eram todos de mentira.
+const ALARMES = 'dados/alarmes-de-teste.log';
+
 const limpar = () => {
   for (const sufixo of ['', '-wal', '-shm']) {
     rmSync(resolve(RAIZ, BANCO + sufixo), { force: true });
   }
+  rmSync(resolve(RAIZ, ALARMES), { force: true });
 };
 
 limpar();
@@ -30,7 +38,7 @@ limpar();
 const saida = spawnSync(process.execPath, ['--test'], {
   cwd: RAIZ,
   stdio: 'inherit',
-  env: { ...process.env, RICARDO_BANCO: BANCO },
+  env: { ...process.env, RICARDO_BANCO: BANCO, RICARDO_ALARMES: ALARMES },
 });
 
 limpar();

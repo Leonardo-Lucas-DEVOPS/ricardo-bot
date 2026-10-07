@@ -93,7 +93,14 @@ export const config = {
     ? resolve(RAIZ, process.env.RICARDO_BANCO)
     : resolve(RAIZ, 'dados', 'ricardo.db'),
   marcadorQR: resolve(RAIZ, 'dados', 'PRECISA-QR.txt'),
-  arquivoAlarme: resolve(RAIZ, 'logs', 'ALARME.log'),
+  // RICARDO_ALARMES existe pelo mesmo motivo que RICARDO_BANCO: a suíte
+  // corrompe um banco DE PROPÓSITO pra provar a guarda, e o alarme ia parar
+  // no arquivo de produção. Ficou invisível até os alarmes irem pra tela —
+  // aí o painel passou a mostrar 25 avisos de "banco corrompido" que eram
+  // todos de teste. Alarme falso gasta a confiança no alarme verdadeiro.
+  arquivoAlarme: process.env.RICARDO_ALARMES
+    ? resolve(RAIZ, process.env.RICARDO_ALARMES)
+    : resolve(RAIZ, 'logs', 'ALARME.log'),
 
   gemini: {
     chave: chaveGeminiAtiva(),
