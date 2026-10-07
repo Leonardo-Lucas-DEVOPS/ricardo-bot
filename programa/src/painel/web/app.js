@@ -28,7 +28,6 @@ const iniciais = (t) => String(t || '?').trim().slice(0, 2).toUpperCase();
 let E = {};                                   // último estado do servidor
 let modelos = { curados: [], padrao: '' };
 let aba = 'hoje';
-let emAjustes = false;
 let conversaAberta = null;
 let arquivoAberto = null;
 let passo = null;                             // assistente: null = fora
@@ -36,22 +35,64 @@ let rascunho = {};
 let ultimaLinha = 0;
 let linhasTerminal = [];
 
-const ABAS = { hoje:'Hoje', conversas:'Conversas', pedidos:'Pedidos' };
-const AJUSTES = { config:'Configuração', instrucoes:'Instruções',
-                  terminal:'Terminal', eventos:'Eventos', sobre:'Sobre' };
+/* O menu inteiro de uma vez, em dois grupos.
+ *
+ * Antes eram dois conjuntos de abas que se alternavam por um botão de
+ * engrenagem: você via "Hoje | Conversas | Pedidos" OU "Configuração |
+ * Instruções | Terminal | Eventos | Sobre", nunca os dois. Pra achar o
+ * terminal era preciso descobrir que existia uma segunda fileira escondida.
+ * Numa barra lateral cabem todos, e o que existe fica à vista. */
+const MENU = [
+  { grupo: 'Operação', itens: {
+      hoje:       { nome: 'Hoje',          ic: '◉' },
+      conversas:  { nome: 'Conversas',     ic: '✉' },
+      pedidos:    { nome: 'Pedidos',       ic: '▤' },
+    } },
+  { grupo: 'Ajustes', itens: {
+      config:     { nome: 'Configuração',  ic: '⚙' },
+      instrucoes: { nome: 'Instruções',    ic: '✎' },
+      terminal:   { nome: 'Terminal',      ic: '▶' },
+      eventos:    { nome: 'Eventos',       ic: '⌁' },
+      sobre:      { nome: 'Sobre',         ic: 'ⓘ' },
+    } },
+];
 const PASSOS = ['A IA','Seu negócio','Entrega','WhatsApp','Pronto'];
 
-/* ─── cabeçalho ──────────────────────────────────────────────────────── */
-function pintarTopo() {
+/* ─── barra lateral ──────────────────────────────────────────────────── */
+function pintarLateral() {
   $('#pt').className = 'pt' + (E.conectado ? ' viva' : '');
   $('#chave').setAttribute('aria-checked', E.botLigado ? 'true' : 'false');
   $('#rotulo-chave').textContent = E.botLigado ? 'ligado' : 'desligado';
-  $('#b-ajustes').style.background = emAjustes ? 'var(--n200)' : '';
 
-  const mapa = emAjustes ? AJUSTES : ABAS;
-  troca($('#abas'), Object.entries(mapa).map(([id, nome]) =>
-    h('button', { txt: nome, 'aria-current': aba === id ? 'page' : null,
-                  onclick: () => { aba = id; conversaAberta = null; desenhar(); } })));
+  const pendencias = { pedidos: (E.entregarHoje?.length || 0) + (E.naoPagos?.length || 0) };
+
+  troca($('#abas'), MENU.flatMap(({ grupo, itens }) => [
+    h('div', { cls:'grupo', txt: grupo }),
+    ...Object.entries(itens).map(([id, { nome, ic }]) =>
+      h('button', { 'aria-current': aba === id ? 'page' : null,
+                    onclick: () => irPara(id) },
+        h('span', { cls:'ic', txt: ic }),
+        h('span', { cls:'cresce', txt: nome }),
+        pendencias[id] ? h('span', { cls:'sino', txt: String(pendencias[id]) }) : null)),
+  ]));
+}
+
+/* ─── para onde a tela aponta ────────────────────────────────────────── */
+/* O endereço manda, não a variável. Assim F5 volta pro mesmo lugar e dá pra
+ * mandar link direto pra uma conversa — antes qualquer recarga jogava você
+ * de volta pro "Hoje". */
+function irPara(nova, extra) {
+  location.hash = '#/' + nova + (extra ? '/' + encodeURIComponent(extra) : '');
+}
+
+function lerEndereco() {
+  const [, nome, extra] = (location.hash || '').replace(/^#\/?/, '/').split('/');
+  const existe = MENU.some((g) => nome in g.itens);
+  aba = existe ? nome : 'hoje';
+  const arg = extra ? decodeURIComponent(extra) : null;
+  conversaAberta = aba === 'conversas' ? arg : null;
+  if (aba === 'instrucoes' && arg) arquivoAberto = arg;
+  fecharMenu();
 }
 
 /* ─── HOJE ───────────────────────────────────────────────────────────── */
@@ -182,7 +223,7 @@ async function telaConversas() {
     return [h('div', { cls:'carta' },
       h('div', { cls:'carta-topo' },
         h('button', { cls:'b fina vazio', txt:'←',
-                      onclick: () => { conversaAberta = null; desenhar(); } }),
+                      onclick: () => irPara('conversas') }),
         h('div', { cls:'cresce' },
           h('div', { cls:'forte', txt: c.nome || c.telefone || '—' }),
           h('div', { cls:'mini', txt: [c.nicho, c.regiao, c.tipo_cliente, c.estagio]
@@ -232,7 +273,7 @@ async function telaConversas() {
       d.contatos.length ? h('span', { cls:'conta', txt: String(d.contatos.length) }) : null),
     d.contatos.length
       ? d.contatos.map((c) => h('div', { cls:'item clica',
-          onclick: () => { conversaAberta = c.telefone; desenhar(); } },
+          onclick: () => irPara('conversas', c.telefone) },
           h('div', { cls:'avatar', txt: iniciais(c.nome || c.exibir) }),
           h('div', { cls:'cresce' },
             h('div', { cls:'titulo' }, c.nome || c.exibir,
@@ -386,7 +427,7 @@ async function telaInstrucoes() {
       h('div', { cls:'carta-topo', style:'flex-wrap:wrap;gap:6px' },
         E.instrucoes.map((a) => h('button', {
           cls: 'b fina ' + (a === arquivoAberto ? 'forte' : 'vazio'), txt: nome(a),
-          onclick: () => { arquivoAberto = a; desenhar(); } }))),
+          onclick: () => irPara('instrucoes', a) }))),
       h('div', { cls:'carta-corpo' },
         h('textarea', { id:'editor' }, r.conteudo),
         h('div', { cls:'fila', style:'margin-top:12px' },
@@ -743,24 +784,65 @@ async function motor(acao) {
   setTimeout(() => { c.disabled = false; atualizar(); }, 1200);
 }
 
-function aviso(t) { if (t) window.alert(t); }
+/* ─── avisos e perguntas ─────────────────────────────────────────────── */
+/* `alert` e `confirm` travam a janela inteira, saem com a cara do navegador
+ * e não dão pra ler duas mensagens seguidas. Estes aparecem num canto, somem
+ * sozinhos, e o painel continua respondendo. */
+
+const ICONE_AVISO = { ok: '✓', mal: '✕', atencao: '!', info: 'i' };
+
+function aviso(texto, tom = 'info') {
+  if (!texto) return;
+  const caixa = $('#avisos');
+  if (!caixa) return;
+
+  const el = h('div', { cls: 'aviso ' + tom },
+    h('span', { cls:'ic', txt: ICONE_AVISO[tom] || ICONE_AVISO.info }),
+    h('span', { cls:'cresce', txt: texto }));
+  caixa.append(el);
+
+  const sumir = () => {
+    el.classList.add('saindo');
+    setTimeout(() => el.remove(), 250);
+  };
+  const relogio = setTimeout(sumir, tom === 'mal' ? 7000 : 4000);
+  el.onclick = () => { clearTimeout(relogio); sumir(); };
+}
 
 /* Pergunta antes do que não é trivial desfazer. */
-function confirmar(pergunta, entao) { if (window.confirm(pergunta)) entao(); }
+function confirmar(pergunta, entao, { rotulo = 'Confirmar', tom = 'risco' } = {}) {
+  const d = $('#dialogo');
+  if (!d) { if (window.confirm(pergunta)) entao(); return; }
+
+  const [titulo, ...resto] = String(pergunta).split('\n');
+  const corpo = resto.join('\n').trim();
+
+  const fechar = () => d.close();
+  troca(d,
+    h('div', { cls:'d-corpo' },
+      h('h3', { txt: titulo }),
+      corpo ? h('p', { txt: corpo }) : null),
+    h('div', { cls:'d-pe' },
+      h('button', { cls:'b vazio', txt:'Cancelar', onclick: fechar }),
+      h('button', { cls:'b ' + tom, txt: rotulo,
+                    onclick: () => { fechar(); entao(); } })));
+
+  d.showModal();
+}
 
 /* ─── desenho ────────────────────────────────────────────────────────── */
 async function desenhar() {
-  pintarTopo();
+  pintarLateral();
   const tela = $('#tela');
 
-  if (passo !== null) return troca(tela, telaAssistente());
+  if (passo !== null) return troca(tela, h('div', { cls:'tela-dentro' }, telaAssistente()));
 
   const mapa = { hoje: telaHoje, conversas: telaConversas, pedidos: telaPedidos,
                  config: telaConfig, instrucoes: telaInstrucoes,
                  terminal: telaTerminal, eventos: telaEventos, sobre: telaSobre };
   const fn = mapa[aba] || telaHoje;
   const conteudo = await fn();
-  troca(tela, conteudo);
+  troca(tela, h('div', { cls:'tela-dentro' }, conteudo));
 
   if (aba === 'terminal') {
     const t = $('#terminal');
@@ -769,12 +851,43 @@ async function desenhar() {
 }
 
 $('#chave').onclick = () => motor(E.botLigado ? 'desligar' : 'ligar');
-$('#b-ajustes').onclick = () => {
-  emAjustes = !emAjustes;
-  aba = emAjustes ? 'config' : 'hoje';
-  passo = null; conversaAberta = null;
-  desenhar();
+
+/* ─── tema ───────────────────────────────────────────────────────────── */
+/* Três estados, não dois: claro, escuro, e "o que o sistema mandar". O
+ * terceiro é o padrão — só vira escolha quando você clica. */
+const TEMAS = ['sistema', 'claro', 'escuro'];
+const ROTULO_TEMA = { sistema: '◐', claro: '☀', escuro: '☾' };
+
+function aplicarTema(qual) {
+  if (qual === 'sistema') document.documentElement.removeAttribute('data-tema');
+  else document.documentElement.setAttribute('data-tema', qual);
+  $('#b-tema').textContent = ROTULO_TEMA[qual];
+  $('#b-tema').title = 'Tema: ' + qual;
+}
+
+let tema = localStorage.getItem('tema') || 'sistema';
+aplicarTema(TEMAS.includes(tema) ? tema : 'sistema');
+
+$('#b-tema').onclick = () => {
+  tema = TEMAS[(TEMAS.indexOf(tema) + 1) % TEMAS.length];
+  localStorage.setItem('tema', tema);
+  aplicarTema(tema);
 };
+
+/* ─── menu no celular ────────────────────────────────────────────────── */
+function fecharMenu() {
+  $('#lateral')?.classList.remove('aberta');
+  $('#veu')?.classList.remove('aberta');
+}
+$('#menu-botao').onclick = () => {
+  $('#lateral').classList.toggle('aberta');
+  $('#veu').classList.toggle('aberta');
+};
+$('#veu').onclick = fecharMenu;
+addEventListener('keydown', (ev) => { if (ev.key === 'Escape') fecharMenu(); });
+
+/* O endereço é a fonte da verdade da navegação. */
+addEventListener('hashchange', () => { passo = null; lerEndereco(); desenhar(); });
 
 /* ─── atualização ────────────────────────────────────────────────────── */
 async function puxarTerminal() {
@@ -798,7 +911,7 @@ async function atualizar() {
                !== JSON.stringify([E.conectado, E.botLigado, E.qr, E.pronto,
                                   E.entregarHoje?.length, E.naoPagos?.length]);
     E = novo;
-    pintarTopo();
+    pintarLateral();
 
     const veioLinha = await puxarTerminal();
 
@@ -813,6 +926,7 @@ async function atualizar() {
 
 (async () => {
   modelos = await api('/api/modelos');
+  lerEndereco();
   await atualizar();
   if (!E.pronto) passo = 0;      // primeira vez: já abre o assistente
   desenhar();

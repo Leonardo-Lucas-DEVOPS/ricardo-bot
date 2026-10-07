@@ -34,6 +34,9 @@ export function montarDOM() {
     set innerHTML(v) { this._html = v; }
     setAttribute(k, v) { this.attrs[k] = v; }
     getAttribute(k) { return this.attrs[k] ?? null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    showModal() { this.attrs.open = ''; }
+    close() { delete this.attrs.open; }
     addEventListener(ev, fn) { (this.ouvintes[ev] ||= []).push(fn); }
     append(...k) { for (const x of k.flat(9)) if (x != null) this.children.push(x); }
     appendChild(x) { this.children.push(x); return x; }
@@ -60,10 +63,14 @@ export function montarDOM() {
     addEventListener() {},
   };
   doc.body = new El('body');
+  doc.documentElement = new El('html');
 
   // Os elementos que o <body> já traz escritos no HTML.
-  for (const id of ['pt', 'rotulo-chave', 'chave', 'b-ajustes', 'abas', 'tela']) {
-    new El('div').setAttribute('id', id);
+  // Os mesmos ids que o esqueleto de `pagina.js` traz escritos no HTML.
+  const PRONTOS = ['pt', 'rotulo-chave', 'chave', 'b-tema', 'abas', 'tela',
+                   'lateral', 'veu', 'menu-botao', 'avisos', 'dialogo'];
+  for (const id of PRONTOS) {
+    new El(id === 'dialogo' ? 'dialog' : 'div').setAttribute('id', id);
   }
 
   return { doc, El, todos };
@@ -81,6 +88,7 @@ export function montarJanela(doc, respostas) {
       if (corpo === undefined) erros.push(`rota não prevista no teste: ${caminho}`);
       return { ok: true, status: 200, json: async () => corpo ?? {}, text: async () => '' };
     },
+    addEventListener() {},
     setInterval: () => 0,
     clearInterval: () => {},
     setTimeout: (fn, ms) => { if (!ms) fn(); return 0; },

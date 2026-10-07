@@ -37,19 +37,25 @@ export const pagina = () => `<!doctype html>
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<header class="topo">
-  <div class="topo-linha">
-    <span class="marca"><span class="pt" id="pt"></span> Ricardo Bot</span>
-    <span class="fim">
-      <span class="fraco" id="rotulo-chave"></span>
+<button class="menu-botao" id="menu-botao" aria-label="Abrir o menu">☰</button>
+<div class="veu" id="veu"></div>
+
+<div class="app">
+  <aside class="lateral" id="lateral">
+    <div class="marca"><span class="pt" id="pt"></span> Ricardo Bot</div>
+    <nav class="menu" id="abas"></nav>
+    <div class="lateral-pe">
       <button class="chave" id="chave" role="switch" aria-checked="false"
               title="Ligar / desligar o robô"></button>
-      <button class="b fina vazio" id="b-ajustes" title="Ajustes">⚙</button>
-    </span>
-  </div>
-  <nav class="abas" id="abas"></nav>
-</header>
-<main id="tela"></main>
+      <span class="fraco" id="rotulo-chave"></span>
+      <button class="b fina vazio" id="b-tema" title="Claro / escuro">◐</button>
+    </div>
+  </aside>
+  <main id="tela"></main>
+</div>
+
+<div class="avisos" id="avisos" role="status" aria-live="polite"></div>
+<dialog class="dialogo" id="dialogo"></dialog>
 <script src="/app.js"></script>
 </body>
 </html>`;
