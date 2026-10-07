@@ -23,6 +23,9 @@ import { iniciarPainel, registrarModulos } from './painel/index.js';
 import { definir, definirAcoes, registrarLinha } from './painel/estado.js';
 import * as banco from './ficha/banco.js';
 import * as pedidos from './pedidos/index.js';
+// So pra previa do painel (quem seria cutucado agora). Quem roda o ciclo de
+// verdade e o processo do robo.
+import * as cutucador from './cutucador/index.js';
 
 const CAMINHO_BOT = resolve(RAIZ, 'src', 'bot.js');
 
@@ -209,7 +212,7 @@ async function principal() {
   log.info('Ricardo Bot');
   log.info('─'.repeat(58));
 
-  registrarModulos({ banco, pedidos });
+  registrarModulos({ banco, pedidos, cutucador });
   definirAcoes({
     ligar: ligarRobo,
     desligar: desligarRobo,

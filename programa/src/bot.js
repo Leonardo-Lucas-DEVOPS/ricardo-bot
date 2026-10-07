@@ -44,6 +44,7 @@ function avisarPai(campos) {
 }
 const definir = avisarPai;
 import { iniciarZelador } from './zelador/index.js';
+import { iniciarCutucador, definirCutucadas } from './cutucador/index.js';
 import * as banco from './ficha/banco.js';
 import {
   registrarQuemEscreveu, gravarMensagem, ehEcoDoRobo, evento,
@@ -326,12 +327,12 @@ function avisoDePedido(pedido, contato) {
 
 /** O último trecho antes de sair: Disfarce (M5) e Segurança (M10). */
 async function entregar(telefone, jid, resposta, opcoes = {}) {
-  if (!resposta?.trim()) return;
+  if (!resposta?.trim()) return false;
 
   const veredito = podeEnviar(telefone, opcoes);
   if (!veredito.permitido) {
     log.warn(`não enviei para ${telParaExibir(telefone)}: ${veredito.motivo}`);
-    return;
+    return false;
   }
 
   const texto = limparLinkSeCedo(telefone, resposta);
@@ -348,6 +349,13 @@ async function entregar(telefone, jid, resposta, opcoes = {}) {
       return waId;
     },
   });
+
+  // Tem que devolver se foi.
+  //
+  // O M7 só incrementa `cutucadas_enviadas` quando a mensagem saiu de
+  // verdade. Como isto aqui não devolvia nada, o contador nunca subia — e o
+  // mesmo lead seria re-cutucado a cada 60 segundos, pra sempre.
+  return true;
 }
 
 /**
@@ -708,6 +716,25 @@ async function subirRobo() {
   iniciarZelador();
   vigiarPausas();
 
+  // M7, o follow-up. Liga SEMPRE, mas o que ele faz depende de duas coisas:
+  //
+  //   • `soRecompra: true` — só a recompra de 7 dias, que vai pra quem JÁ
+  //     comprou. As cutucadas 1 e 2 (pra quem sumiu) ficam de fora: é o
+  //     módulo que o doc 08 chama de mais perigoso do sistema, e cutucar quem
+  //     sumiu é a falha que gera denúncia com razão.
+  //   • `CUTUCADAS_LIGADAS` — o ciclo roda, mas não manda nada enquanto você
+  //     não ligar no painel. Padrão desligado.
+  //
+  // O adaptador abaixo resolve dois defeitos de uma vez: a assinatura que o
+  // M7 espera (objeto) contra a que `entregar` tem (posicional), e o
+  // `ehCutucada` que faltava — sem ele, o freio do M10 era código morto.
+  iniciarCutucador({
+    soRecompra: true,
+    textoCutucadas: () => persona.cutucadas(),
+    enviar: ({ telefone, jid, texto }) =>
+      entregar(telefone, jid, texto, { ehCutucada: true }),
+  });
+
   // Ordens vindas do painel.
   process.on('message', async (msg) => {
     if (msg?.acao === 'recarregar') return persona.carregar();
@@ -720,6 +747,11 @@ async function subirRobo() {
         if (msg.acao === 'enviar') r = await enviarNaMao(msg.telefone, msg.texto);
         else if (msg.acao === 'encerrar') r = await encerrarPeloPainel(msg.telefone);
         else if (msg.acao === 'status') r = { ok: true, texto: montarStatus() };
+        else if (msg.acao === 'cutucadas') {
+          const ligado = definirCutucadas(msg.ligado);
+          r = { ok: true, ligado,
+                mensagem: ligado ? 'Follow-up ligado.' : 'Follow-up desligado.' };
+        }
         else r = { ok: false, mensagem: `não conheço a ordem "${msg.acao}"` };
       } catch (erro) {
         r = { ok: false, mensagem: erro?.message ?? String(erro) };

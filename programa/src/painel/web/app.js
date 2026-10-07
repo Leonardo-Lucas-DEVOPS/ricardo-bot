@@ -57,6 +57,7 @@ const MENU = [
       config:     { nome: 'Configuração',  ic: '⚙' },
       instrucoes: { nome: 'Instruções',    ic: '✎' },
       terminal:   { nome: 'Terminal',      ic: '▶' },
+      followup:   { nome: 'Follow-up',     ic: '↻' },
       eventos:    { nome: 'Eventos',       ic: '⌁' },
       sobre:      { nome: 'Sobre',         ic: 'ⓘ' },
     } },
@@ -635,6 +636,84 @@ function telaTerminal() {
   ];
 }
 
+/* ─── AJUSTES: follow-up ─────────────────────────────────────────────── */
+/*
+ * A tela do módulo que o doc 08 chama de mais perigoso do sistema.
+ *
+ * Por isso ela mostra a PRÉVIA antes do botão: quem receberia agora, com
+ * nome e número. Ligar às cegas e torcer não é opção — a pior falha possível
+ * do projeto é cutucar alguém que pediu pra parar.
+ */
+async function telaFollowUp() {
+  const d = await api('/api/cutucador');
+
+  return [
+    h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Follow-up' })),
+      h('div', { cls:'carta-corpo' },
+        h('div', { cls:'fila', style:'justify-content:space-between' },
+          h('div', { cls:'cresce' },
+            h('div', { cls:'forte', txt: d.ligado ? 'Ligado' : 'Desligado' }),
+            h('div', { cls:'mini', txt: d.soRecompra
+              ? 'Só a recompra de 7 dias, para quem já comprou.'
+              : 'Cutucadas e recompra.' })),
+          h('button', { cls:'chave', role:'switch',
+                        'aria-checked': d.ligado ? 'true' : 'false',
+                        onclick: () => {
+                          if (d.ligado) return agir('cutucadas', null, { ligado: false });
+                          confirmar('Ligar o follow-up?',
+                            () => agir('cutucadas', null, { ligado: true }),
+                            { rotulo:'Ligar', tom:'forte',
+                              corpo:'O robô vai escrever sozinho para quem comprou há 7 '
+                                  + 'dias. Confira a lista abaixo antes.' });
+                        } })),
+        h('div', { cls:'faixa atencao', style:'margin:16px 0 0' },
+          h('div', null,
+            h('b', { txt:'Só a recompra está ativa. ' }),
+            'As cutucadas para quem sumiu ficam desligadas: cutucar quem não ',
+            'respondeu é a falha que gera denúncia — e denúncia é o que mais ',
+            'pesa no banimento do número.')))),
+
+    h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' },
+        h('h2', { txt:'Receberiam a recompra agora' }),
+        h('span', { cls:'conta', txt: String((d.recompra || []).length) })),
+      (d.recompra || []).length
+        ? d.recompra.map((c) => h('div', { cls:'item clica',
+            onclick: () => irPara('conversas', c.telefone) },
+            h('div', { cls:'avatar', txt: iniciais(c.nome || c.exibir) }),
+            h('div', { cls:'cresce' },
+              h('div', { cls:'titulo', txt: c.nome || c.exibir }),
+              h('div', { cls:'mini', txt: 'pedido #' + c.numeroPedido + ' · ' +
+                (c.pacote || 0).toLocaleString('pt-BR') + ' leads' }))))
+        : vazio('🤝', 'Ninguém comprou há 7 dias ainda.')),
+
+    !d.soRecompra ? h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' },
+        h('h2', { txt:'Seriam cutucados agora' }),
+        h('span', { cls:'conta', txt: String((d.fila || []).length) })),
+      (d.fila || []).length
+        ? d.fila.map((c) => h('div', { cls:'item clica',
+            onclick: () => irPara('conversas', c.telefone) },
+            h('div', { cls:'avatar', txt: iniciais(c.nome || c.exibir) }),
+            h('div', { cls:'cresce' },
+              h('div', { cls:'titulo', txt: c.nome || c.exibir }),
+              h('div', { cls:'mini', txt: 'cutucada ' + c.numero + ' · calado há ' +
+                c.silencioMin + ' min' }))))
+        : vazio('💤', 'Ninguém na janela agora.')) : null,
+
+    h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Histórico' })),
+      h('div', { cls:'carta-corpo' },
+        h('div', { cls:'fila', style:'justify-content:space-between' },
+          h('div', null, h('div', { cls:'num-g', txt: String(d.recompras || 0) }),
+            h('div', { cls:'mini', txt:'recompras enviadas' })),
+          h('div', { style:'text-align:right' },
+            h('div', { cls:'num-g', txt: String(d.enviadas || 0) }),
+            h('div', { cls:'mini', txt:'cutucadas enviadas' }))))),
+  ];
+}
+
 /* ─── AJUSTES: eventos ───────────────────────────────────────────────── */
 
 let filtroEvento = 'nenhum';
@@ -1057,7 +1136,8 @@ async function desenhar() {
 
   const mapa = { hoje: telaHoje, conversas: telaConversas, pedidos: telaPedidos,
                  config: telaConfig, instrucoes: telaInstrucoes,
-                 terminal: telaTerminal, eventos: telaEventos, sobre: telaSobre };
+                 terminal: telaTerminal, eventos: telaEventos, sobre: telaSobre,
+                 followup: telaFollowUp };
   const fn = mapa[aba] || telaHoje;
   const conteudo = await fn();
   troca(tela, h('div', { cls:'tela-dentro' }, conteudo));

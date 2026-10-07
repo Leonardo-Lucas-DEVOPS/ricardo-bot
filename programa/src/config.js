@@ -125,7 +125,10 @@ export const config = {
     maxSegundos: numero('AUDIO_MAX_SEGUNDOS', 120),
   },
 
-  cutucadas: { ligadas: bool('CUTUCADAS_LIGADAS', true) },
+  // Padrao DESLIGADO. Vinha `true`, ao contrario do .env.example, entao uma
+  // instalacao sem a chave no .env subia cutucando — e o modulo que o doc 08
+  // chama de mais perigoso do sistema e o ultimo que deve ligar sozinho.
+  cutucadas: { ligadas: bool('CUTUCADAS_LIGADAS', false) },
   painel: { porta: numero('PAINEL_PORTA', 3100) },
 
   // --- Números que o dossiê definiu, agrupados pra não ficarem soltos no código ---

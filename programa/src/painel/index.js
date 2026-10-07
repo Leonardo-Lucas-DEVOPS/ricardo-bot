@@ -343,6 +343,50 @@ async function rotear(req, res) {
   // O ALARME.log na tela. Até agora ele só existia em disco — os avisos mais
   // graves do sistema (banco corrompido, WhatsApp fora do ar, robô caído 10
   // vezes) ficavam num arquivo que ninguém abre.
+  // O follow-up: estado do botão e prévia de quem receberia AGORA.
+  //
+  // Mostrar a prévia importa mais aqui que em qualquer outra tela: é o módulo
+  // que o doc 08 chama de mais perigoso do sistema. Ligar às cegas e torcer
+  // não é opção — você vê a lista antes.
+  if (rota === '/api/cutucador') {
+    const banco = carregarBanco();
+    let fila = [];
+    let recompra = [];
+    try {
+      const m = requireSync('../cutucador/index.js');
+      fila = m.candidatos().map((x) => ({
+        telefone: x.contato.telefone,
+        exibir: telParaExibir(x.contato.telefone),
+        nome: x.contato.nome,
+        numero: x.cutucada.n,
+        silencioMin: Math.round(x.silencioMs / 60000),
+      }));
+      recompra = m.candidatosRecompra().map((c) => ({
+        telefone: c.telefone, exibir: telParaExibir(c.telefone),
+        nome: c.nome, pacote: c.pacote, numeroPedido: c.numero,
+      }));
+    } catch {
+      // Robô desligado: o módulo não está carregado. Sem prévia, sem erro.
+    }
+    const enviadas = banco.db
+      .prepare("SELECT COUNT(*) c FROM eventos WHERE tipo = 'cutucada_enviada'").get().c;
+    const recompras = banco.db
+      .prepare("SELECT COUNT(*) c FROM eventos WHERE tipo = 'recompra_enviada'").get().c;
+
+    // O estado vem do .env, não do `config` DESTE processo.
+    //
+    // O ciclo roda no robô, em outro processo, com outra cópia do config. Ler
+    // daqui seria recriar exatamente a "duas fontes de verdade" que acabou de
+    // ser consertada dentro do M7. O .env é o registro durável: o painel
+    // escreve nele e avisa o robô pelo IPC.
+    const env = lerEnv();
+    const ligado = /^(true|1|sim)$/i.test(String(env.CUTUCADAS_LIGADAS ?? '').trim());
+
+    return responder(res, 200, {
+      ligado, soRecompra: true, fila, recompra, enviadas, recompras,
+    });
+  }
+
   if (rota === '/api/alarmes') {
     const caminho = config.arquivoAlarme;
     if (!existsSync(caminho)) return responder(res, 200, { alarmes: [] });
@@ -733,6 +777,14 @@ async function executarAcao({ acao, alvo, ...extra }) {
       return { ok: true, mensagem: `Pedido #${r.pedido.numero} criado.` };
     }
 
+    // Liga/desliga o follow-up. Vai pro robô porque é lá que o ciclo roda —
+    // e é assim que M7 e M10 passam a enxergar o mesmo valor.
+    case 'cutucadas': {
+      const r = await falarComORobo('cutucadas', { ligado: extra?.ligado === true });
+      if (r.ok) salvarEnv({ CUTUCADAS_LIGADAS: extra?.ligado ? 'true' : 'false' });
+      return r;
+    }
+
     case 'recarregar':
       estado.acoes.recarregarInstrucoes?.();
       return { ok: true, mensagem: 'Instruções recarregadas.' };
@@ -765,9 +817,10 @@ function requireSync(caminho) {
 }
 
 const cacheDeModulos = new Map();
-export function registrarModulos({ banco, pedidos }) {
+export function registrarModulos({ banco, pedidos, cutucador }) {
   if (banco) cacheDeModulos.set('../ficha/banco.js', banco);
   if (pedidos) cacheDeModulos.set('../pedidos/index.js', pedidos);
+  if (cutucador) cacheDeModulos.set('../cutucador/index.js', cutucador);
 }
 
 // ---------------------------------------------------------------------------
