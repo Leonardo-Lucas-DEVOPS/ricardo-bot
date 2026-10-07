@@ -34,6 +34,10 @@ let passo = null;                             // assistente: null = fora
 let rascunho = {};
 let ultimaLinha = 0;
 let linhasTerminal = [];
+let buscaConversa = '';
+let filtroConversa = 'todos';
+let paginaConversa = 0;
+let relogioBusca = 0;
 
 /* O menu inteiro de uma vez, em dois grupos.
  *
@@ -209,7 +213,32 @@ function cartaResumo() {
         h('div', { style:'text-align:right' },
           h('div', { cls:'mini', txt:'IA hoje' }),
           h('div', { cls:'forte', txt: (E.chamadasIA || 0) + ' chamadas' }),
-          h('div', { cls:'mini', txt: (E.tokensHoje || 0).toLocaleString('pt-BR') + ' tokens' }))))));
+          h('div', { cls:'mini', txt: (E.tokensHoje || 0).toLocaleString('pt-BR') + ' tokens' }))),
+      medidorTeto())));
+}
+
+/**
+ * O teto por hora, à vista.
+ *
+ * O servidor já mandava `enviadasHora` e `tetoHora` em todo /api/estado — e a
+ * página jogava fora. Essa é a trava que mais gera "o robô parou de
+ * responder": ele bate o teto, segura tudo em silêncio, e por fora parece que
+ * quebrou. Com o medidor na tela, você vê chegando.
+ */
+function medidorTeto() {
+  const teto = E.tetoHora || 0;
+  if (!teto) return null;
+  const usado = E.enviadasHora || 0;
+  const parte = Math.min(1, usado / teto);
+
+  const tom = parte >= 1 ? ' estourou' : parte >= 0.75 ? ' perto' : '';
+  return h('div', { cls:'medidor' + tom, style:'margin-top:16px' },
+    h('div', { cls:'trilho' },
+      h('div', { cls:'cheio', style:'width:' + Math.round(parte * 100) + '%' })),
+    h('div', { cls:'legenda' },
+      h('span', { txt: usado + ' de ' + teto + ' mensagens nesta hora' }),
+      h('span', { txt: parte >= 1 ? 'no teto — segurando envios'
+                     : parte >= 0.75 ? 'chegando no teto' : 'folga' })));
 }
 
 const vazio = (icone, frase) => h('div', { cls:'vazio-estado' },
@@ -248,29 +277,109 @@ async function telaConversas() {
           c.pacote_interesse ? ' · pacote de interesse: ' + c.pacote_interesse : '')),
 
       h('div', { cls:'carta-corpo', style:'display:flex;gap:8px;flex-wrap:wrap' },
-        h('button', { cls:'b fina', txt:'Assumir por 2h',
-                      onclick: () => agir('pausar', conversaAberta) }),
+        h('select', { id:'f-horas', style:'width:auto' },
+          [[2,'2 horas'],[8,'8 horas'],[24,'ate amanha'],[72,'3 dias']].map(
+            ([v, nome]) => h('option', { value:String(v), txt:'Assumir por ' + nome }))),
+        h('button', { cls:'b fina', txt:'Assumir',
+                      onclick: () => agir('pausar', conversaAberta,
+                                          { horas: Number($('#f-horas').value) }) }),
         h('button', { cls:'b fina', txt:'Devolver ao robô',
                       onclick: () => agir('voltar', conversaAberta) }),
         c.lista_negra
           ? h('button', { cls:'b fina risco', txt:'Tirar da lista negra',
                           onclick: () => agir('liberar', conversaAberta) })
-          : h('button', { cls:'b fina risco', txt:'Bloquear',
-                          onclick: () => confirmar(
-                            'Bloquear este contato?\n\nEle não recebe mais nada do robô, ' +
-                            'e não é avisado disso. Dá pra desfazer aqui mesmo depois.',
-                            () => agir('bloquear', conversaAberta)) })),
+          : [
+              // Duas saídas, e a diferença importa: quem PEDIU pra sair merece a
+              // frase curta (sumir calado é o que gera denúncia); quem você
+              // bloqueou não pediu nada e não deve ser avisado.
+              h('button', { cls:'b fina', txt:'Encerrar com despedida',
+                            onclick: () => confirmar(
+                              'Encerrar com despedida?',
+                              () => agir('encerrar', conversaAberta),
+                              { rotulo:'Encerrar', tom:'forte',
+                                corpo:'Ele recebe uma frase curta de encerramento e '
+                                    + 'depois nada. Use quando o lead pediu pra parar.' }) }),
+              h('button', { cls:'b fina risco', txt:'Bloquear calado',
+                            onclick: () => confirmar(
+                              'Bloquear este contato?',
+                              () => agir('bloquear', conversaAberta),
+                              { corpo:'Ele não recebe mais nada do robô, e não é '
+                                    + 'avisado disso. Dá pra desfazer aqui mesmo depois.' }) }),
+            ]),
       h('div', { cls:'carta-corpo', style:'border-top:1px solid var(--linha)' },
         d.mensagens.length
           ? d.mensagens.map((m) => h('div', { cls:'balao ' + m.autor },
               m.texto, h('div', { cls:'qdo', txt: m.quando + (m.autor === 'humano' ? ' · você' : '') })))
-          : vazio('💬', 'Nenhuma mensagem ainda.')))];
+          : vazio('💬', 'Nenhuma mensagem ainda.')),
+
+      // Responder sem sair do painel.
+      //
+      // Esta era a maior lacuna da tela: você "assumia" a conversa aqui e
+      // tinha que pegar o celular pra escrever. O painel mostrava tudo e não
+      // deixava fazer a única coisa que importava naquele momento.
+      c.lista_negra
+        ? h('div', { cls:'carta-corpo', style:'border-top:1px solid var(--linha)' },
+            h('div', { cls:'faixa mal', style:'margin:0' },
+              h('div', null, h('b', { txt:'Na lista negra. ' }),
+                'Não dá pra escrever — tire da lista primeiro.')))
+        : h('div', { cls:'carta-corpo', style:'border-top:1px solid var(--linha)' },
+            h('div', { cls:'fila', style:'align-items:flex-end' },
+              h('label', { cls:'campo cresce', style:'margin:0' },
+                h('span', { cls:'rot', txt:'Responder como você' }),
+                h('textarea', { id:'f-msg', rows:'2',
+                                placeholder:'Escreva e aperte Enviar…',
+                                style:'min-height:64px;font-family:inherit;font-size:14px',
+                                onkeydown: (ev) => {
+                                  if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+                                    enviarMensagem();
+                                  }
+                                } })),
+              h('button', { cls:'b forte', id:'f-enviar', txt:'Enviar',
+                            onclick: enviarMensagem })),
+            h('div', { cls:'mini', style:'margin-top:6px',
+                       txt:'Sai na hora, sem o atraso que o robô usa. Escrever aqui é ' +
+                           'assumir a conversa: o robô se cala. Ctrl+Enter envia.' })))];
   }
 
-  const d = await api('/api/conversas');
+  // Busca, filtro e paginação.
+  //
+  // Antes eram os 60 mais recentes e ponto final. Quem caísse fora da lista
+  // virava inalcançável pela tela — inclusive pra tirar da lista negra, que é
+  // justamente quando você precisa achar um contato antigo. Pelo WhatsApp
+  // dava (`/liberar <numero>`); pelo painel, não.
+  const q = new URLSearchParams({ filtro: filtroConversa, pagina: String(paginaConversa) });
+  if (buscaConversa) q.set('busca', buscaConversa);
+  const d = await api('/api/conversas?' + q);
+
+  const FILTROS = { todos:'Todos', ativos:'Ativos', pausados:'Assumidos por você',
+                    lista_negra:'Lista negra' };
+
   return [h('div', { cls:'carta' },
-    h('div', { cls:'carta-topo' }, h('h2', { txt:'Conversas' }),
-      d.contatos.length ? h('span', { cls:'conta', txt: String(d.contatos.length) }) : null),
+    h('div', { cls:'carta-topo' },
+      h('h2', { txt:'Conversas' }),
+      h('span', { cls:'conta', txt: String(d.total ?? 0) })),
+
+    h('div', { cls:'carta-corpo', style:'border-bottom:1px solid var(--linha)' },
+      h('div', { cls:'fila' },
+        h('div', { cls:'busca cresce', style:'min-width:180px' },
+          h('input', { id:'f-busca', type:'search', value: buscaConversa,
+                       placeholder:'Procurar por nome ou número…',
+                       oninput: (ev) => {
+                         // Espera você parar de digitar: uma consulta por
+                         // tecla deixaria a lista piscando.
+                         clearTimeout(relogioBusca);
+                         const v = ev.target.value;
+                         relogioBusca = setTimeout(() => {
+                           buscaConversa = v; paginaConversa = 0; desenhar();
+                         }, 250);
+                       } })),
+        h('select', { style:'width:auto', value: filtroConversa,
+                      onchange: (ev) => {
+                        filtroConversa = ev.target.value; paginaConversa = 0; desenhar();
+                      } },
+          Object.entries(FILTROS).map(([v, nome]) =>
+            h('option', { value: v, txt: nome, selected: filtroConversa === v }))))),
+
     d.contatos.length
       ? d.contatos.map((c) => h('div', { cls:'item clica',
           onclick: () => irPara('conversas', c.telefone) },
@@ -283,7 +392,22 @@ async function telaConversas() {
             h('div', { txt: c.quando }),
             h('div', { txt: c.nicho || '' })))
         )
-      : vazio('👋', 'Nenhum lead ainda. Quando alguém escrever, aparece aqui.'))];
+      : vazio('👋', buscaConversa || filtroConversa !== 'todos'
+          ? 'Nada com esse filtro.'
+          : 'Nenhum lead ainda. Quando alguém escrever, aparece aqui.'),
+
+    (paginaConversa > 0 || d.temMais)
+      ? h('div', { cls:'carta-corpo', style:'border-top:1px solid var(--linha)' },
+          h('div', { cls:'fila' },
+            h('button', { cls:'b fina vazio', txt:'← Anteriores',
+                          disabled: paginaConversa === 0,
+                          onclick: () => { paginaConversa -= 1; desenhar(); } }),
+            h('button', { cls:'b fina vazio', txt:'Próximos →',
+                          disabled: !d.temMais,
+                          onclick: () => { paginaConversa += 1; desenhar(); } }),
+            h('span', { cls:'mini', txt: `${paginaConversa * (d.porPagina || 50) + 1}` +
+              `–${paginaConversa * (d.porPagina || 50) + d.contatos.length} de ${d.total}` })))
+      : null)];
 }
 
 const campoFicha = (campo, rotulo, valor) =>
@@ -770,9 +894,24 @@ async function desenharAtalhoW() {
 }
 
 /* ─── ações ──────────────────────────────────────────────────────────── */
-async function agir(acao, alvo) {
-  const r = await post('/api/acao', { acao, alvo });
-  if (r.mensagem) aviso(r.mensagem);
+async function agir(acao, alvo, extra) {
+  const r = await post('/api/acao', { acao, alvo, ...extra });
+  if (r.mensagem) aviso(r.mensagem, r.ok === false ? 'mal' : 'ok');
+  desenhar();
+}
+
+/* Responder o lead sem sair do painel. */
+async function enviarMensagem() {
+  const caixa = $('#f-msg');
+  const texto = (caixa?.value || '').trim();
+  if (!texto) return aviso('Escreva alguma coisa antes de enviar.', 'atencao');
+
+  const botao = $('#f-enviar');
+  if (botao) { botao.disabled = true; botao.textContent = 'Enviando…'; }
+
+  const r = await post('/api/acao', { acao:'enviar', alvo: conversaAberta, texto });
+  if (r.ok) caixa.value = '';
+  aviso(r.mensagem || (r.ok ? 'Enviado.' : 'Não consegui enviar.'), r.ok ? 'ok' : 'mal');
   desenhar();
 }
 
@@ -810,18 +949,20 @@ function aviso(texto, tom = 'info') {
 }
 
 /* Pergunta antes do que não é trivial desfazer. */
-function confirmar(pergunta, entao, { rotulo = 'Confirmar', tom = 'risco' } = {}) {
+function confirmar(pergunta, entao, { rotulo = 'Confirmar', tom = 'risco', corpo = '' } = {}) {
   const d = $('#dialogo');
   if (!d) { if (window.confirm(pergunta)) entao(); return; }
 
+  // O detalhe pode vir pela opção `corpo` ou depois da primeira quebra de
+  // linha. A opção é a preferida: evita escapes no meio de uma frase.
   const [titulo, ...resto] = String(pergunta).split('\n');
-  const corpo = resto.join('\n').trim();
+  const detalhe = (corpo || resto.join('\n')).trim();
 
   const fechar = () => d.close();
   troca(d,
     h('div', { cls:'d-corpo' },
       h('h3', { txt: titulo }),
-      corpo ? h('p', { txt: corpo }) : null),
+      detalhe ? h('p', { txt: detalhe }) : null),
     h('div', { cls:'d-pe' },
       h('button', { cls:'b vazio', txt:'Cancelar', onclick: fechar }),
       h('button', { cls:'b ' + tom, txt: rotulo,

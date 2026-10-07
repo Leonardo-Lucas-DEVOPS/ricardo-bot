@@ -25,6 +25,7 @@ export const estado = {
     reiniciar: null,
     recarregarInstrucoes: null,
     estaLigado: null,
+    pedirAoRobo: null,      // fala com o processo do robô e espera a resposta
   },
 };
 

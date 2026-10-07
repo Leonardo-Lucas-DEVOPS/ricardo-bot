@@ -26,7 +26,23 @@ import {
  * não tem `ja_escreveu = 1`, a mensagem NÃO sai. É a diferença entre pedir e
  * impedir (doc 03) — e é o que mantém o número vivo.
  */
-export function podeEnviar(tel, { ehCutucada = false } = {}) {
+/**
+ * `ehDespedida` fura a TRAVA 2, e só ela. Existe por um motivo exato:
+ *
+ * `encerrarPorPedido` aplica a lista negra ANTES de devolver a frase de
+ * despedida — e tem que ser nessa ordem, senão um erro no envio deixaria o
+ * contato fora da lista e o robô voltaria a falar com quem pediu pra parar.
+ * Só que aí a própria despedida batia na trava 2 e era recusada. Resultado:
+ * quem pedia pra sair recebia SILÊNCIO.
+ *
+ * Isso inverte o que o doc 08 pede. Sumir sem responder quem acabou de falar
+ * com você é o que gera denúncia, e denúncia é o que mais pesa no banimento.
+ * A frase curta não é gentileza: é o que protege o número.
+ *
+ * As outras três travas continuam valendo. Em especial a 1: quem nunca
+ * escreveu não recebe nem despedida.
+ */
+export function podeEnviar(tel, { ehCutucada = false, ehDespedida = false } = {}) {
   const telefone = normalizar(tel);
   if (!telefone) return { permitido: false, motivo: 'numero_invalido' };
 
@@ -40,7 +56,8 @@ export function podeEnviar(tel, { ehCutucada = false } = {}) {
   }
 
   // TRAVA 2 — lista negra. Conferida aqui e no M7: cinto e suspensório.
-  if (contato.lista_negra === 1) {
+  // A única exceção é a despedida, explicada no cabeçalho desta função.
+  if (contato.lista_negra === 1 && !ehDespedida) {
     evento('envio_recusado', telefone, { motivo: 'lista_negra' });
     return { permitido: false, motivo: 'lista_negra' };
   }

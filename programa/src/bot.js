@@ -325,10 +325,10 @@ function avisoDePedido(pedido, contato) {
 // ---------------------------------------------------------------------------
 
 /** O último trecho antes de sair: Disfarce (M5) e Segurança (M10). */
-async function entregar(telefone, jid, resposta) {
+async function entregar(telefone, jid, resposta, opcoes = {}) {
   if (!resposta?.trim()) return;
 
-  const veredito = podeEnviar(telefone);
+  const veredito = podeEnviar(telefone, opcoes);
   if (!veredito.permitido) {
     log.warn(`não enviei para ${telParaExibir(telefone)}: ${veredito.motivo}`);
     return;
@@ -348,6 +348,63 @@ async function entregar(telefone, jid, resposta) {
       return waId;
     },
   });
+}
+
+/**
+ * Você digitou no painel. Sai agora, inteiro, sem teatro.
+ *
+ * Nada do Disfarce aqui de propósito: "digitando…", atraso variável e quebra
+ * em balões existem pra um robô não parecer robô. Quem escreveu foi gente —
+ * fingir ritmo humano em cima de texto humano só atrasaria a resposta.
+ *
+ * As travas do M10 continuam valendo. A mais importante é a primeira: só
+ * responde quem escreveu antes. Se ela barrar, você vê o motivo na tela em
+ * vez de um silêncio — mas ela NÃO é contornável pelo painel, porque é ela
+ * que mantém o número vivo.
+ *
+ * E escrever aqui é assumir a conversa, igualzinho a responder pelo celular:
+ * o robô se cala nessa conversa pelo mesmo tempo.
+ */
+async function enviarNaMao(telefone, texto) {
+  const limpo = String(texto ?? '').trim();
+  if (!limpo) return { ok: false, mensagem: 'mensagem vazia' };
+
+  const contato = buscarContato(telefone);
+  if (!contato) return { ok: false, mensagem: 'não conheço este número' };
+
+  const veredito = podeEnviar(telefone);
+  if (!veredito.permitido) return { ok: false, mensagem: veredito.motivo };
+
+  const waId = await porteiro.enviar(contato.jid, limpo);
+  if (!waId) return { ok: false, mensagem: 'o WhatsApp não aceitou a mensagem' };
+
+  gravarMensagem({ telefone, autor: 'humano', texto: limpo, waId });
+
+  const ate = daquiA(config.seguranca.pausaTakeoverMs);
+  pausarAte(telefone, ate);
+  evento('humano_assumiu', telefone, { via: 'painel', pausado_ate: ate });
+  log.warn(`você respondeu ${telParaExibir(telefone)} pelo painel — ` +
+           `robô calado até ${paraExibir(ate)}`);
+
+  return { ok: true, mensagem: `Enviado. O robô fica calado até ${paraExibir(ate)}.` };
+}
+
+/**
+ * Encerrar pelo painel: a despedida educada, e depois nada.
+ *
+ * Reusa `encerrarConversa`, o mesmo caminho que o robô percorre quando o
+ * próprio lead pede pra parar. Uma segunda implementação aqui ia divergir da
+ * primeira no primeiro ajuste — e a diferença só apareceria em produção.
+ */
+async function encerrarPeloPainel(telefone) {
+  const contato = buscarContato(telefone);
+  if (!contato) return { ok: false, mensagem: 'não conheço este número' };
+  if (estaNaListaNegra(telefone)) {
+    return { ok: false, mensagem: 'esse contato já estava na lista negra' };
+  }
+
+  await encerrarConversa(telefone, contato.jid, 'encerrado por você no painel');
+  return { ok: true, mensagem: 'Despedida enviada. Esse contato não recebe mais nada.' };
 }
 
 /**
@@ -414,7 +471,9 @@ async function encerrarConversa(telefone, jid, motivo) {
     `⛔ LISTA NEGRA\n\n${telParaExibir(telefone)} pediu pra parar.\n` +
       `Motivo: ${motivo}\n\nSe foi engano: /liberar ${telefone}`,
   );
-  if (despedida) await entregar(telefone, jid, despedida);
+  // `ehDespedida`: a lista negra acabou de ser aplicada, e sem isto a
+  // própria despedida bateria na trava 2 e o lead receberia silêncio.
+  if (despedida) await entregar(telefone, jid, despedida, { ehDespedida: true });
 }
 
 /**
@@ -650,8 +709,23 @@ async function subirRobo() {
   vigiarPausas();
 
   // Ordens vindas do painel.
-  process.on('message', (msg) => {
-    if (msg?.acao === 'recarregar') persona.carregar();
+  process.on('message', async (msg) => {
+    if (msg?.acao === 'recarregar') return persona.carregar();
+
+    // Pedidos que esperam resposta. O `id` volta junto pro supervisor achar
+    // quem estava esperando.
+    if (msg?.id) {
+      let r;
+      try {
+        if (msg.acao === 'enviar') r = await enviarNaMao(msg.telefone, msg.texto);
+        else if (msg.acao === 'encerrar') r = await encerrarPeloPainel(msg.telefone);
+        else if (msg.acao === 'status') r = { ok: true, texto: montarStatus() };
+        else r = { ok: false, mensagem: `não conheço a ordem "${msg.acao}"` };
+      } catch (erro) {
+        r = { ok: false, mensagem: erro?.message ?? String(erro) };
+      }
+      process.send?.({ tipo: 'resposta', id: msg.id, ...r });
+    }
   });
 
   definir({ botLigado: true, erroBot: null, subiuEm: agora() });

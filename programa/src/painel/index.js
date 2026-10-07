@@ -309,9 +309,18 @@ async function rotear(req, res) {
     return responder(res, 200, await executarAcao(await lerCorpo(req)));
   }
 
-  if (rota === '/api/reiniciar' && req.method === 'POST') {
-    return responder(res, 200, estado.acoes.reiniciar?.() ?? { ok: false });
+  // O boletim do `//status` do WhatsApp, na tela. Era o único comando sem
+  // equivalente no painel — e ele traz duas coisas que não apareciam em tela
+  // nenhuma: quantas mensagens saíram na última hora contra o teto, e qual
+  // chave do Gemini está ativa.
+  if (rota === '/api/boletim') {
+    return responder(res, 200, await falarComORobo('status', {}));
   }
+
+  // Havia aqui um POST /api/reiniciar que nenhuma tela chamava: a página
+  // reinicia por /api/motor desde a separação dos processos. Rota que ninguém
+  // chama é superfície aberta sem dono — alguém lê e acha que é o caminho
+  // certo. Removida.
 
   responder(res, 404, { erro: 'não existe' });
 }
@@ -397,7 +406,9 @@ function contarTudo() {
   };
 }
 
-function listarConversas(url) {
+// Exportada pro teste: e SQL montado na mao, com filtro, busca e pagina.
+// Errar aqui nao quebra nada visivelmente — so some com contato da lista.
+export function listarConversas(url) {
   const { db, ultimasMensagens } = carregarBanco();
   const tel = url.searchParams.get('telefone');
 
@@ -411,11 +422,52 @@ function listarConversas(url) {
     };
   }
 
+  // Busca, filtro e paginação.
+  //
+  // Antes eram os 60 mais recentes e ponto. O efeito colateral era grave: quem
+  // caísse fora do top 60 virava inalcançável pelo painel — inclusive pra
+  // tirar da lista negra, que é a operação em que você MAIS precisa achar um
+  // contato antigo. Pelo WhatsApp dava (`/liberar <numero>`); pela tela, não.
+  const busca = (url.searchParams.get('busca') || '').trim();
+  const filtro = url.searchParams.get('filtro') || 'todos';
+  const pagina = Math.max(0, Number(url.searchParams.get('pagina')) || 0);
+  const POR_PAGINA = 50;
+
+  const onde = [];
+  const args = [];
+
+  if (filtro === 'lista_negra') {
+    onde.push('lista_negra = 1');
+  } else if (filtro === 'pausados') {
+    onde.push('pausado_ate IS NOT NULL AND pausado_ate > ?');
+    args.push(agora());
+  } else if (filtro === 'ativos') {
+    onde.push('lista_negra = 0');
+  }
+
+  if (busca) {
+    // Casa pelo número OU pelo nome. O número é guardado só com dígitos, então
+    // "(19) 99999-8888" precisa ser achatado antes de comparar.
+    const digitos = busca.replace(/\D/g, '');
+    const pedacos = ['nome LIKE ?'];
+    args.push('%' + busca + '%');
+    if (digitos) { pedacos.push('telefone LIKE ?'); args.push('%' + digitos + '%'); }
+    onde.push('(' + pedacos.join(' OR ') + ')');
+  }
+
+  const filtroSQL = onde.length ? ' WHERE ' + onde.join(' AND ') : '';
+  const total = db.prepare('SELECT COUNT(*) c FROM contatos' + filtroSQL).get(...args).c;
+
   const contatos = db
-    .prepare('SELECT * FROM contatos ORDER BY ultima_mensagem DESC LIMIT 60')
-    .all();
+    .prepare('SELECT * FROM contatos' + filtroSQL +
+             ' ORDER BY ultima_mensagem DESC LIMIT ? OFFSET ?')
+    .all(...args, POR_PAGINA, pagina * POR_PAGINA);
 
   return {
+    total,
+    pagina,
+    porPagina: POR_PAGINA,
+    temMais: (pagina + 1) * POR_PAGINA < total,
     contatos: contatos.map((c) => ({
       ...c,
       exibir: telParaExibir(c.telefone),
@@ -512,17 +564,51 @@ function listarPedidos() {
   };
 }
 
-async function executarAcao({ acao, alvo }) {
+/**
+ * Pede uma coisa ao processo do robô e espera a resposta.
+ *
+ * O painel roda no supervisor; o WhatsApp vive no robô. Qualquer coisa que
+ * precise SAIR pelo WhatsApp atravessa este canal — e com o robô desligado a
+ * resposta é um "não deu" explicado, não um silêncio.
+ */
+async function falarComORobo(acao, dados) {
+  const pedir = estado.acoes.pedirAoRobo;
+  if (!pedir) return { ok: false, mensagem: 'o supervisor ainda não subiu' };
+  return await pedir(acao, dados);
+}
+
+async function executarAcao({ acao, alvo, ...extra }) {
   const banco = carregarBanco();
 
   switch (acao) {
-    case 'pausar':
-      banco.pausarAte(alvo, new Date(Date.now() + config.seguranca.pausaTakeoverMs).toISOString());
-      return { ok: true, mensagem: 'Robô pausado nessa conversa por 2 horas.' };
+    // `horas` é opcional: sem ele, vale o padrão do .env. Antes era fixo em
+    // 2h e não havia como assumir uma conversa até amanhã.
+    case 'pausar': {
+      const ms = Number(extra?.horas) > 0
+        ? Number(extra.horas) * 3_600_000
+        : config.seguranca.pausaTakeoverMs;
+      const ate = new Date(Date.now() + ms).toISOString();
+      banco.pausarAte(alvo, ate);
+      return { ok: true, mensagem: `Robô calado nessa conversa até ${paraExibir(ate)}.` };
+    }
 
     case 'voltar':
       banco.despausar(alvo);
       return { ok: true, mensagem: 'Robô reassumiu a conversa.' };
+
+    // Encerrar COM despedida, que é diferente de bloquear calado. O lead pediu
+    // pra sair: recebe uma frase curta e depois nada. Sem isto, a única saída
+    // pelo painel era o bloqueio silencioso.
+    //
+    // Vai pro robô porque é lá que mora o WhatsApp — e porque assim reusa
+    // exatamente o mesmo caminho que o robô já usa sozinho, em vez de uma
+    // segunda implementação que ia divergir.
+    case 'encerrar':
+      return await falarComORobo('encerrar', { telefone: alvo });
+
+    // Você digitou no painel. Sai agora, inteiro, sem o teatro do Disfarce.
+    case 'enviar':
+      return await falarComORobo('enviar', { telefone: alvo, texto: extra?.texto });
 
     case 'bloquear': {
       const r = bloquearManualmente(alvo, 'bloqueado por você no painel');

@@ -57,6 +57,11 @@ export function ligarRobo() {
     if (msg?.tipo === 'estado') {
       const { tipo, ...campos } = msg;
       definir(campos);
+      return;
+    }
+    if (msg?.tipo === 'resposta') {
+      const esperando = pendentes.get(msg.id);
+      if (esperando) { pendentes.delete(msg.id); esperando(msg); }
     }
   });
 
@@ -140,6 +145,50 @@ export function ordenarAoRobo(acao) {
 }
 
 // ---------------------------------------------------------------------------
+//  Perguntar ao robô e esperar a resposta
+// ---------------------------------------------------------------------------
+//
+// `ordenarAoRobo` grita e vai embora. Isso serve pra "recarregue as
+// instruções", mas não pra "mande esta mensagem" — aí você precisa saber se
+// foi, e se não foi, por quê.
+//
+// Quem fala WhatsApp é o processo do ROBÔ; o painel vive no supervisor. Então
+// a mensagem que você digita no painel atravessa o IPC, e a resposta volta
+// pelo mesmo caminho. Cada pedido leva um número pra achar o seu par na volta.
+
+const pendentes = new Map();
+let proximoPedido = 1;
+
+const ESPERA_PADRAO_MS = 15_000;
+
+export function pedirAoRobo(acao, dados = {}, espera = ESPERA_PADRAO_MS) {
+  return new Promise((cumprir) => {
+    if (!robo) return cumprir({ ok: false, mensagem: 'O robô está desligado.' });
+
+    const id = proximoPedido++;
+    // Sem este relógio, um robô travado deixaria a aba do painel girando pra
+    // sempre — e a promessa pendurada vazaria memória no supervisor.
+    const relogio = setTimeout(() => {
+      pendentes.delete(id);
+      cumprir({ ok: false, mensagem: 'o robô não respondeu a tempo' });
+    }, espera);
+
+    pendentes.set(id, (resposta) => {
+      clearTimeout(relogio);
+      cumprir(resposta);
+    });
+
+    try {
+      robo.send({ id, acao, ...dados });
+    } catch (erro) {
+      pendentes.delete(id);
+      clearTimeout(relogio);
+      cumprir({ ok: false, mensagem: 'não consegui falar com o robô' });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 //  A saída do robô vira a aba Terminal
 // ---------------------------------------------------------------------------
 
@@ -167,6 +216,9 @@ async function principal() {
     reiniciar: reiniciarRobo,
     recarregarInstrucoes: () => ordenarAoRobo('recarregar'),
     estaLigado: roboEstaLigado,
+    // O painel vive AQUI, no supervisor; quem fala WhatsApp é o robô. Tudo
+    // que precisa sair pelo WhatsApp atravessa este canal.
+    pedirAoRobo,
   });
 
   const servidor = await iniciarPainel();
