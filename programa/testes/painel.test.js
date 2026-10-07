@@ -1,62 +1,53 @@
 // A página do painel precisa EXECUTAR, não só ser servida.
 //
-// Isto nasceu de um bug que ficou vivo de 11/09 a 06/10 sem ninguém notar.
+// Isto nasceu de um bug que ficou vivo de 11/09 a 06/10 sem ninguém notar: um
+// '\n' escrito dentro do template literal da página virava quebra de linha de
+// verdade no meio de uma string, e o script inteiro morria. O servidor
+// respondia 200, o HTML chegava completo, o cabeçalho desenhava — e o corpo
+// ficava vazio com os botões mortos. Por fora parecia "o bot não liga".
 //
-// A página inteira é um template literal. Quem escreve '\n' dentro dele está
-// escrevendo uma quebra de linha DE VERDADE, que entra no meio de uma string
-// de aspas simples no JavaScript gerado:
+// Nenhum teste chegava a executar o script. Todos paravam no servidor.
 //
-//     confirmar('Voltar o banco para este backup?
-//
-//     ' + ...)                     <- SyntaxError
-//
-// Um único caractere desses mata o script inteiro. O servidor continua
-// respondendo 200, o HTML continua chegando com 52 KB, o cabeçalho continua
-// desenhando — e o corpo fica em branco, nenhum botão responde. Por fora
-// parece "o bot não liga".
-//
-// Nenhum teste chegava a executar o script. Todos paravam no servidor. Então
-// o teste é este: compile o que vai pro navegador.
+// Hoje o JS mora em `web/app.js`, um arquivo de verdade, então aquela
+// armadilha específica acabou. O que continua valendo — e é o que estes
+// testes guardam — é a pergunta que ninguém fazia: **a tela desenha?**
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { pagina } from '../src/painel/pagina.js';
+import { RAIZ } from '../src/config.js';
 
 const html = pagina();
+const PASTA_WEB = resolve(RAIZ, 'src', 'painel', 'web');
+const APP_JS = resolve(PASTA_WEB, 'app.js');
+const APP_CSS = resolve(PASTA_WEB, 'app.css');
 
-const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+const scripts = [readFileSync(APP_JS, 'utf8')];
 
-test('a página serve pelo menos um script', () => {
-  assert.ok(scripts.length > 0, 'nenhum <script> na página');
+test('o esqueleto aponta para os arquivos que existem', () => {
+  assert.match(html, /<link rel="stylesheet" href="\/app\.css">/, 'o HTML não busca o estilo');
+  assert.match(html, /<script src="\/app\.js"><\/script>/, 'o HTML não busca a aplicação');
+  assert.ok(existsSync(APP_JS), 'web/app.js não existe');
+  assert.ok(existsSync(APP_CSS), 'web/app.css não existe');
+});
+
+test('o esqueleto não carrega nada de fora', () => {
+  // Sem CDN, de propósito: o painel precisa abrir com a internet caída.
+  assert.doesNotMatch(html, /https?:\/\/(?!localhost)/,
+    'a página referencia um endereço externo');
 });
 
 test('o script da página compila', () => {
   scripts.forEach((js, i) => {
     assert.doesNotThrow(
-      () => new vm.Script(js, { filename: `pagina-script-${i}.js` }),
+      () => new vm.Script(js, { filename: `app-${i}.js` }),
       `o script ${i} não compila — o painel abre em branco`,
     );
   });
-});
-
-// A armadilha específica, dita com todas as letras: dentro do template a
-// escrita certa é '\\n'. Um '\n' cru vira quebra de linha literal.
-test('nenhuma string do script tem quebra de linha crua dentro', () => {
-  for (const [i, js] of scripts.entries()) {
-    js.split('\n').forEach((linha, n) => {
-      // Aspas simples desemparelhadas numa linha = string aberta que vaza
-      // pra linha seguinte. (Apóstrofo em comentário não conta.)
-      const semComentario = linha.replace(/\/\/.*$/, '');
-      const aspas = (semComentario.match(/(?<!\\)'/g) || []).length;
-      assert.equal(
-        aspas % 2, 0,
-        `script ${i}, linha ${n + 1}: aspas simples desemparelhadas — ` +
-        `provavelmente um \\n cru comido pelo template.\n    ${linha.trim()}`,
-      );
-    });
-  }
 });
 
 // ---------------------------------------------------------------------------
@@ -64,16 +55,16 @@ test('nenhuma string do script tem quebra de linha crua dentro', () => {
 // ---------------------------------------------------------------------------
 
 test('o QR vem como imagem, não como bloco de texto', () => {
-  assert.match(html, /\/qr\.svg/, 'a página não busca o QR em /qr.svg');
+  assert.match(scripts[0], /\/qr\.svg/, 'a aplicação não busca o QR em /qr.svg');
   assert.doesNotMatch(
-    html, /cls:'qr', txt:/,
+    scripts[0], /cls:'qr', txt:/,
     'voltou a desenhar o QR como texto ASCII — a câmera não lê isso',
   );
 });
 
 test('o botão de ligar e o de ajustes existem', () => {
-  assert.match(html, /\/api\/motor/, 'nada liga/desliga o robô');
-  assert.match(html, /\/api\/estado/, 'a tela não lê o estado');
+  assert.match(scripts[0], /\/api\/motor/, 'nada liga/desliga o robô');
+  assert.match(scripts[0], /\/api\/estado/, 'a tela não lê o estado');
 });
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,186 @@
+/* ─── sistema ────────────────────────────────────────────────────────── */
+:root {
+  --n0:#fff; --n50:#fafafa; --n100:#f4f4f5; --n200:#e7e7ea; --n300:#d3d4d8;
+  --n400:#9b9ca3; --n500:#71727a; --n600:#52535a; --n800:#26272b; --n900:#18191c;
+  --acento:#12875a; --acento-forte:#0e6c48; --acento-fraco:#e8f4ee;
+  --perigo:#c0392b; --perigo-fraco:#fdeceb;
+  --atencao:#8a6d00; --atencao-fraco:#fdf6e0;
+  --fundo:var(--n50); --carta:var(--n0); --linha:var(--n200);
+  --txt:var(--n900); --txt2:var(--n500); --txt3:var(--n400);
+  --r:10px; --r-g:14px;
+  --sombra:0 1px 2px rgba(0,0,0,.04), 0 1px 3px rgba(0,0,0,.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --n0:#1c1d21; --n50:#141519; --n100:#212328; --n200:#2c2e34; --n300:#3a3d44;
+    --n400:#6e7078; --n500:#9a9ca3; --n600:#b8bac0; --n800:#e6e7ea; --n900:#f2f3f5;
+    --acento:#2fa971; --acento-forte:#3cbc80; --acento-fraco:#15291f;
+    --perigo:#f0685c; --perigo-fraco:#2c1614;
+    --atencao:#d9a520; --atencao-fraco:#2a2313;
+    --fundo:var(--n50); --carta:var(--n0); --linha:var(--n200);
+    --sombra:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box;margin:0}
+body{background:var(--fundo);color:var(--txt);
+  font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* ─── cabeçalho ──────────────────────────────────────────────────────── */
+.topo{position:sticky;top:0;z-index:20;background:var(--carta);
+  border-bottom:1px solid var(--linha);padding:0 20px}
+.topo-linha{display:flex;align-items:center;gap:14px;height:56px;
+  max-width:900px;margin:0 auto}
+.marca{font-weight:650;font-size:15px;letter-spacing:-.01em;display:flex;
+  align-items:center;gap:8px}
+.marca .pt{width:8px;height:8px;border-radius:50%;background:var(--n300)}
+.marca .pt.viva{background:var(--acento);box-shadow:0 0 0 3px var(--acento-fraco)}
+.topo .fim{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* overflow-y:hidden é obrigatório: pela regra do CSS, definir overflow-x
+   como auto faz o overflow-y virar auto junto. Com o margin-bottom:-1px
+   dos botões sobra 1px de altura e o navegador desenha uma barra de
+   rolagem vertical fantasma, com setinhas e tudo. */
+.abas{display:flex;gap:2px;max-width:900px;margin:0 auto;
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.abas::-webkit-scrollbar{display:none}
+.abas button{background:none;border:0;padding:0 2px 11px;margin-right:20px;
+  color:var(--txt2);cursor:pointer;font-size:14px;white-space:nowrap;
+  border-bottom:2px solid transparent;margin-bottom:-1px}
+.abas button:hover{color:var(--txt)}
+.abas button[aria-current]{color:var(--txt);font-weight:600;border-color:var(--acento)}
+
+/* ─── chave liga/desliga ─────────────────────────────────────────────── */
+.chave{width:42px;height:25px;border-radius:13px;background:var(--n300);
+  border:0;position:relative;cursor:pointer;transition:background .18s;flex:none}
+.chave::after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;
+  border-radius:50%;background:#fff;transition:transform .18s;
+  box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.chave[aria-checked="true"]{background:var(--acento)}
+.chave[aria-checked="true"]::after{transform:translateX(17px)}
+.chave:disabled{opacity:.5;cursor:wait}
+
+/* ─── estrutura ──────────────────────────────────────────────────────── */
+main{max-width:900px;margin:0 auto;padding:24px 20px 60px}
+.carta{background:var(--carta);border:1px solid var(--linha);border-radius:var(--r-g);
+  box-shadow:var(--sombra);margin-bottom:14px;overflow:hidden}
+.carta-corpo{padding:18px 20px}
+.carta-topo{display:flex;align-items:center;gap:10px;padding:14px 20px;
+  border-bottom:1px solid var(--linha)}
+.carta-topo h2{font-size:13px;font-weight:600;color:var(--txt2);
+  text-transform:uppercase;letter-spacing:.05em}
+.conta{margin-left:auto;font-size:12px;font-weight:650;color:var(--txt2);
+  background:var(--n100);padding:2px 8px;border-radius:20px}
+
+/* ─── herói de status ────────────────────────────────────────────────── */
+.heroi{display:flex;align-items:center;gap:16px;padding:22px 20px}
+.heroi .selo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+  font-size:20px;flex:none;background:var(--n100)}
+.heroi.ok .selo{background:var(--acento-fraco)}
+.heroi.mal .selo{background:var(--perigo-fraco)}
+.heroi.espera .selo{background:var(--atencao-fraco)}
+.heroi h1{font-size:19px;font-weight:650;letter-spacing:-.015em}
+.heroi p{color:var(--txt2);font-size:13.5px;margin-top:2px}
+
+/* ─── tipografia utilitária ──────────────────────────────────────────── */
+.fraco{color:var(--txt2);font-size:13.5px}
+.mini{color:var(--txt3);font-size:12px}
+.forte{font-weight:600}
+.num-g{font-size:22px;font-weight:650;letter-spacing:-.02em}
+
+/* ─── botões ─────────────────────────────────────────────────────────── */
+.b{border:1px solid transparent;border-radius:8px;padding:8px 14px;font-size:14px;
+  font-weight:550;cursor:pointer;background:var(--n100);color:var(--txt);
+  transition:background .12s;white-space:nowrap}
+.b:hover{background:var(--n200)}
+.b.forte{background:var(--acento);color:#fff}
+.b.forte:hover{background:var(--acento-forte)}
+.b.risco{color:var(--perigo)}
+.b.fina{padding:5px 10px;font-size:13px}
+.b:disabled{opacity:.5;cursor:default}
+.b.vazio{background:none;border-color:var(--linha)}
+.b.vazio:hover{background:var(--n100)}
+.fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ─── listas ─────────────────────────────────────────────────────────── */
+.item{display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid var(--linha);cursor:default}
+.item:last-child{border-bottom:0}
+.item.clica{cursor:pointer}
+.item.clica:hover{background:var(--n50)}
+.item .cresce{flex:1;min-width:0}
+.item .titulo{font-weight:550;font-size:14.5px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.avatar{width:36px;height:36px;border-radius:10px;background:var(--n100);
+  display:grid;place-items:center;font-weight:600;font-size:14px;
+  color:var(--txt2);flex:none}
+
+/* ─── vazio ──────────────────────────────────────────────────────────── */
+.vazio-estado{padding:36px 20px;text-align:center;color:var(--txt2)}
+.vazio-estado .icone{font-size:26px;opacity:.4;margin-bottom:8px}
+.vazio-estado .frase{font-size:14px}
+
+/* ─── avisos ─────────────────────────────────────────────────────────── */
+.faixa{display:flex;gap:12px;padding:14px 18px;border-radius:var(--r);
+  margin-bottom:14px;font-size:14px;align-items:flex-start}
+.faixa.mal{background:var(--perigo-fraco);color:var(--perigo)}
+.faixa.atencao{background:var(--atencao-fraco);color:var(--atencao)}
+.faixa.ok{background:var(--acento-fraco);color:var(--acento-forte)}
+.faixa b{font-weight:650}
+
+/* ─── formulário ─────────────────────────────────────────────────────── */
+.campo{display:block;margin-bottom:18px}
+.campo>.rot{font-size:13px;font-weight:600;display:block;margin-bottom:6px}
+.campo>.aj{font-size:12.5px;color:var(--txt2);margin-top:6px;display:block}
+input,select,textarea{width:100%;padding:9px 12px;border:1px solid var(--n300);
+  border-radius:8px;background:var(--carta);transition:border-color .12s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--acento);
+  box-shadow:0 0 0 3px var(--acento-fraco)}
+textarea{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  font-size:13px;line-height:1.6;min-height:400px;resize:vertical}
+
+/* ─── conversa ───────────────────────────────────────────────────────── */
+.balao{padding:9px 13px;border-radius:14px;margin-bottom:7px;max-width:75%;
+  white-space:pre-wrap;font-size:14px;line-height:1.5}
+.balao.lead{background:var(--n100);border-bottom-left-radius:4px}
+.balao.robo{background:var(--acento-fraco);margin-left:auto;
+  border-bottom-right-radius:4px}
+.balao.humano{background:var(--atencao-fraco);margin-left:auto;
+  border-bottom-right-radius:4px}
+.balao .qdo{font-size:11px;color:var(--txt3);margin-top:3px}
+
+/* ─── QR e terminal ──────────────────────────────────────────────────── */
+.qr{display:block;box-sizing:border-box;width:100%;max-width:272px;height:auto;
+  margin:0 auto;background:#fff;padding:14px;border-radius:var(--r)}
+.terminal{background:var(--n900);color:#d8dade;font-family:ui-monospace,Consolas,monospace;
+  font-size:12px;line-height:1.65;padding:16px;border-radius:var(--r);
+  height:440px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.terminal .l-erro{color:#f0685c}
+@media (prefers-color-scheme: dark){.terminal{background:#0d0e11}}
+
+/* ─── modelo ─────────────────────────────────────────────────────────── */
+.op{display:flex;gap:11px;padding:13px 15px;border:1px solid var(--n300);
+  border-radius:var(--r);margin-bottom:8px;cursor:pointer;align-items:flex-start}
+.op:hover{border-color:var(--acento)}
+.op[data-sel="1"]{border-color:var(--acento);background:var(--acento-fraco)}
+.op input{width:auto;margin-top:3px;flex:none}
+.tag{font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:20px;
+  background:var(--acento);color:#fff;margin-left:7px;text-transform:uppercase;
+  letter-spacing:.03em}
+.tag.cinza{background:var(--n400)}
+
+/* ─── assistente ─────────────────────────────────────────────────────── */
+.trilha{display:flex;gap:5px;margin-bottom:20px}
+.trilha i{flex:1;height:3px;border-radius:2px;background:var(--n200)}
+.trilha i.feito{background:var(--acento)}
+.trilha i.agora{background:var(--acento);opacity:.45}
+.tit-passo{font-size:23px;font-weight:680;letter-spacing:-.02em;margin-bottom:5px}
+.sub-passo{color:var(--txt2);margin-bottom:22px;font-size:14.5px}
+
+@media(max-width:640px){
+  main{padding:16px 12px 50px}
+  .topo{padding:0 12px}
+  .item{padding:12px 14px}
+  .carta-corpo,.carta-topo,.heroi{padding-left:14px;padding-right:14px}
+  .balao{max-width:88%}
+}

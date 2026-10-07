@@ -28,6 +28,14 @@ import { pagina } from './pagina.js';
 
 const SO_LOCALHOST = '127.0.0.1';
 
+// A pasta dos arquivos que o navegador busca. Lista fechada: só sai daqui o
+// que está mapeado abaixo, então não existe caminho que escape pra `../.env`.
+const PASTA_WEB = resolve(config.pastas.raiz, 'src', 'painel', 'web');
+const ESTATICOS = {
+  '/app.css': { arquivo: 'app.css', tipo: 'text/css' },
+  '/app.js': { arquivo: 'app.js', tipo: 'text/javascript' },
+};
+
 // Só estes arquivos podem ser lidos/gravados pela aba Instruções. Sem isso,
 // um caminho como "../../.env" viraria leitura de segredo.
 const INSTRUCOES = [
@@ -103,6 +111,25 @@ async function rotear(req, res) {
   if (rota === '/' || rota === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(pagina());
+  }
+
+  // O estilo e a aplicação, como arquivos de verdade.
+  //
+  // Sem cache de propósito: você edita `web/app.js`, dá F5, e vê. Um painel
+  // local não tem problema de banda, e cache aqui só serve pra te fazer
+  // depurar a versão antiga.
+  if (ESTATICOS[rota]) {
+    const { arquivo, tipo } = ESTATICOS[rota];
+    const caminho = resolve(PASTA_WEB, arquivo);
+    if (!existsSync(caminho)) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('não achei ' + arquivo);
+    }
+    res.writeHead(200, {
+      'Content-Type': `${tipo}; charset=utf-8`,
+      'Cache-Control': 'no-store, max-age=0',
+    });
+    return res.end(readFileSync(caminho, 'utf8'));
   }
 
   if (rota === '/api/estado') return responder(res, 200, montarEstado());
