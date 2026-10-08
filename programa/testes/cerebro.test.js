@@ -175,10 +175,31 @@ test('o que o robô já sabe entra no contexto', () => {
   assert.equal(conteudo.at(-2).role, 'model');
 });
 
-test('lead novo, sem ficha: só a mensagem', () => {
+test('lead novo, sem ficha: a mensagem e o relógio', () => {
+  // O bloco [AGORA] vai SEMPRE, mesmo sem ficha. Antes não ia nenhum, e a IA
+  // respondia sem fazer ideia de que horas eram — no primeiro teste de campo
+  // ela prometeu "entrega até as 21h de hoje" às 21:21.
   const conteudo = montarConteudo({ contato: null, historico: [], mensagem: 'oi' });
-  assert.equal(conteudo.length, 1);
-  assert.equal(conteudo[0].parts[0].text, 'oi');
+
+  assert.equal(conteudo.at(-1).parts[0].text, 'oi', 'a mensagem do lead vem por último');
+  const tudo = conteudo.map((c) => c.parts[0].text).join('\n');
+  assert.match(tudo, /\[AGORA\]/, 'a IA precisa saber que horas são');
+  assert.match(tudo, /A entrega deste pedido cai:/,
+    'o prazo tem que vir calculado, não ser deixado pra IA');
+});
+
+test('o prazo que a IA recebe é o mesmo que o pedido vai gravar', async () => {
+  // Se divergirem, o robô promete um dia e o pedido registra outro.
+  const { calcularPrazo, ehHoje } = await import('../src/pedidos/index.js');
+  const { paraExibir } = await import('../src/nucleo/relogio.js');
+
+  const conteudo = montarConteudo({ contato: null, historico: [], mensagem: 'oi' });
+  const tudo = conteudo.map((c) => c.parts[0].text).join('\n');
+
+  const prazo = calcularPrazo();
+  if (ehHoje(prazo)) assert.match(tudo, /HOJE at[ée] as/);
+  else assert.ok(tudo.includes(paraExibir(prazo)),
+    `o bloco devia citar ${paraExibir(prazo)}`);
 });
 
 // ---------------------------------------------------------------------------

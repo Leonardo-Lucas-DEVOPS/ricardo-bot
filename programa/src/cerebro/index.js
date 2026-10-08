@@ -11,7 +11,9 @@
 import { GoogleGenAI } from '@google/genai';
 
 import { config } from '../config.js';
+import { calcularPrazo, ehHoje } from '../pedidos/index.js';
 import { log } from '../nucleo/log.js';
+import { paraExibir } from '../nucleo/relogio.js';
 import { evento } from '../ficha/banco.js';
 import { lerTabela, conferirPrecos, tabelaEmTexto, formatarReal } from './precos.js';
 
@@ -451,6 +453,32 @@ export function cortarNoLimite(texto, telefone, limite = config.cerebro.maxCarac
   return acumulado.trim();
 }
 
+/**
+ * O relógio, em palavras que a IA entende.
+ *
+ * Diz a hora, o dia da semana, e — o que importa de verdade — o prazo de
+ * entrega JÁ CALCULADO, com "hoje" ou "amanhã" resolvido. A IA não faz conta
+ * de data; ela só repete o que está escrito aqui.
+ */
+function blocoDeTempo(quando = new Date()) {
+  const prazo = calcularPrazo(quando);
+  const agora = paraExibir(quando.toISOString());
+  const dia = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long', timeZone: config.negocio.fuso,
+  }).format(quando);
+
+  const quandoEntrega = ehHoje(prazo, quando)
+    ? `HOJE até as ${config.negocio.horaLimiteEntrega}h`
+    : `${paraExibir(prazo)} (NÃO é hoje)`;
+
+  return [
+    `Agora são ${agora}, ${dia}.`,
+    `A entrega deste pedido cai: ${quandoEntrega}.`,
+    'Use EXATAMENTE esse prazo quando falar de entrega. Nunca prometa um',
+    'horário que já passou, e nunca calcule a data por conta própria.',
+  ].join('\n');
+}
+
 /** Monta o que a IA vê: quem é o lead, o que já foi dito, e o que chegou agora. */
 export function montarConteudo({ contato, historico = [], mensagem }) {
   const partes = [];
@@ -469,6 +497,17 @@ export function montarConteudo({ contato, historico = [], mensagem }) {
       `[O QUE VOCÊ JÁ SABE DESTE CLIENTE — não pergunte de novo]\n${ficha.join('\n')}`,
     );
   }
+
+  // QUE HORAS SÃO, e quando a entrega REALMENTE cai.
+  //
+  // Sem isto a IA não fazia ideia do relógio, e disse "entrega até as 21h de
+  // hoje" às 21:21 — prometendo um prazo que já tinha vencido. O cliente
+  // respondeu "mas já passou das 21h, como vc vai fazer isso?", que é a
+  // pergunta que derruba a confiança no atendimento inteiro.
+  //
+  // O prazo não é calculado pela IA: vem de `calcularPrazo`, o mesmo que o
+  // pedido vai gravar. Assim a frase e o pedido não têm como divergir.
+  partes.push(`[AGORA]\n${blocoDeTempo()}`);
 
   if (contato?.resumo) {
     partes.push(`[RESUMO DO QUE JÁ CONVERSARAM]\n${contato.resumo}`);

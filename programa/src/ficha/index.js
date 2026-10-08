@@ -34,6 +34,27 @@ export function guardarAprendizado(telefone, ficha) {
   const contato = buscarContato(telefone);
   const campos = { ...ficha };
 
+  // `fechou` NÃO é coisa que a IA declara. É consequência de um pedido
+  // existir, e quem escreve é `pedidos.criar()` — ninguém mais.
+  //
+  // Isto custou um pedido perdido no primeiro teste de campo (07/10, 21:21).
+  // A IA achou que tinha fechado, escreveu `estagio: 'fechou'` na ficha, e a
+  // trava do doc 11 §6 — que só aceita `criar_pedido` vindo de
+  // `aguardando_confirmacao` — passou a recusar o pedido DE VERDADE quando o
+  // lead confirmou um minuto depois. Pior: a guarda de retrocesso abaixo
+  // impedia voltar pra `aguardando_confirmacao`, então a conversa ficou presa.
+  //
+  // O resultado por fora: o robô disse "Pedido confirmado!" e nenhum pedido
+  // existia. Ninguém entregaria nada.
+  if (campos.estagio === 'fechou' && contato?.estagio !== 'fechou') {
+    evento('estagio_fechou_recusado', telefone, { estagioAtual: contato?.estagio ?? null });
+    log.warn(
+      `a IA tentou marcar ${telefone} como "fechou" sem pedido — ignorado ` +
+        '(quem fecha é a criação do pedido)',
+    );
+    delete campos.estagio;
+  }
+
   // O estágio não anda pra trás sozinho. Sem isto, uma resposta distraída da
   // IA jogaria um lead de "aguardando_confirmacao" de volta pra "novo" — e o
   // "sim" dele seria recusado pela trava do doc 11, §6.
