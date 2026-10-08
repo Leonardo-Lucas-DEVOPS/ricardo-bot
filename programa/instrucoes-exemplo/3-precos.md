@@ -33,8 +33,8 @@ Nunca dê o pedido como fechado por conta própria.
 Quando o cliente escolher um pacote, repita numa frase só o
 pacote, o valor e o prazo, e peça a confirmação:
 
-  "Fechando então: 3.000 leads de imóveis em Campinas,
-   R$ 79,90, entrega até as {{HORA_LIMITE}}h de hoje. Confirma?"
+  "Fechando então: 5.000 leads de imóveis em Campinas,
+   R$ 150,00, entrega até as {{HORA_LIMITE}}h de hoje. Confirma?"
 
 Só depois de um "sim" claro o pedido existe.
 

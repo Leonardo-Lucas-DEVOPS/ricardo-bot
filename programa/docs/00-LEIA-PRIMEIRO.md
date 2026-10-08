@@ -24,7 +24,7 @@ já cortou a faixa gratuita sem aviso — ver doc **11, §2** e doc **12**.
 | # | Documento | Pra que serve | Quando ler |
 |---|---|---|---|
 | **01** | [VISAO-GERAL](01-VISAO-GERAL.md) | O que o robô faz, o que ele **não** faz, e as 2 travas que sustentam tudo | Primeiro. É curto. |
-| **02** | [VISAO-CEO-E-PRECOS](02-VISAO-CEO-E-PRECOS.txt) | Os furos na tabela de preços e 5 alavancas de crescimento | Agora — as decisões demoram |
+| **02** | VISAO-CEO-E-PRECOS.txt *(só na sua máquina)* | Os furos na tabela de preços e 5 alavancas de crescimento. **Fora do git**: é sua estratégia, e o repositório é público | Agora — as decisões demoram |
 | **03** | [ARQUITETURA](03-ARQUITETURA.md) | Como as peças conversam; o caminho de uma mensagem do começo ao fim | Antes de aprovar a construção |
 | **04** | [MODULOS](04-MODULOS.md) | Os 12 módulos em detalhe: o que faz, armadilhas, critério de pronto | O documento mais longo. É a planta baixa. |
 | **05** | [STACK](05-STACK.md) | Bibliotecas escolhidas, **versões testadas nesta máquina hoje**, e o que evitar | Quando quiser saber "por que essa e não aquela" |

@@ -24,6 +24,11 @@ dados/instrucoes-anterior/
 # Isto tambem e o que faz o botao de atualizar nunca encostar no seu texto.
 instrucoes/
 
+# Sua estrategia de preco: margem por lead, onde a tabela esta torta, o que
+# mudar. Um concorrente lendo isso aprende sua logica de precificacao inteira
+# e suas fraquezas. O resto do docs/ e documentacao tecnica e fica publico.
+docs/02-VISAO-CEO-E-PRECOS.txt
+
 # Logs
 logs/
 

@@ -26,7 +26,9 @@ import { guardarAprendizado } from '../src/ficha/index.js';
 import { db, registrarQuemEscreveu, buscarContato } from '../src/ficha/banco.js';
 import * as pedidos from '../src/pedidos/index.js';
 
-const TEL = '5511966828262';   // o número do teste de campo
+// Numero de mentira. O teste de campo usou um celular de verdade, e o numero
+// dele NAO entra aqui: o repositorio e publico.
+const TEL = '5511988887777';
 const JID = TEL + '@s.whatsapp.net';
 const TABELA = [{ pacote: 1000, centavos: 3900 }, { pacote: 5000, centavos: 10000 }];
 
