@@ -1206,7 +1206,36 @@ async function desenhar() {
                  terminal: telaTerminal, eventos: telaEventos, sobre: telaSobre,
                  followup: telaFollowUp };
   const fn = mapa[aba] || telaHoje;
-  const conteudo = await fn();
+
+  // Tela que estoura não pode sumir em silêncio.
+  //
+  // Antes, um erro aqui rejeitava a promessa e pronto: o conteúdo ANTIGO
+  // continuava na tela, o menu marcava a aba nova, e por fora parecia que "a
+  // tela não abre". Nenhuma pista, nenhum aviso — o mesmo modo de falhar que
+  // deixou o painel em branco por 25 dias.
+  //
+  // Agora o erro vira tela: você vê o que quebrou e o painel continua de pé.
+  let conteudo;
+  try {
+    conteudo = await fn();
+  } catch (erro) {
+    console.error('a tela "' + aba + '" estourou:', erro);
+    conteudo = h('div', { cls:'carta' },
+      h('div', { cls:'carta-topo' }, h('h2', { txt:'Esta tela não abriu' })),
+      h('div', { cls:'carta-corpo' },
+        h('div', { cls:'faixa mal', style:'margin:0 0 14px' },
+          h('div', null,
+            h('b', { txt: 'Erro em "' + aba + '": ' }),
+            String(erro?.message || erro))),
+        h('div', { cls:'mini', style:'margin-bottom:14px',
+                   txt:'O resto do painel continua funcionando. Se isso persistir, ' +
+                       'o detalhe completo está no console do navegador (F12).' }),
+        h('div', { cls:'fila' },
+          h('button', { cls:'b', txt:'Tentar de novo', onclick: () => desenhar() }),
+          h('button', { cls:'b vazio', txt:'Voltar para Hoje',
+                        onclick: () => irPara('hoje') }))));
+  }
+
   troca(tela, h('div', { cls:'tela-dentro' }, conteudo));
 
   if (aba === 'terminal') {

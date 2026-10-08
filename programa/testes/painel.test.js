@@ -150,3 +150,27 @@ test('o topo reflete o robô ligado', async () => {
   const { doc } = await renderizar();
   assert.equal(doc.querySelector('#chave').attrs['aria-checked'], 'true');
 });
+
+test('tela que estoura vira aviso na tela, não some em silêncio', async () => {
+  // O modo de falhar que queremos matar: `desenhar()` rejeitava, o conteúdo
+  // ANTIGO ficava na tela, o menu marcava a aba nova, e por fora parecia que
+  // "a tela não abre". Sem pista nenhuma.
+  const { doc } = montarDOM();
+  // Uma tabela que nao e lista faz `precos.tabela.map` estourar — e dessa
+  // forma o erro nasce DENTRO da tela, que e o caso real.
+  const { ctx } = montarJanela(doc, {
+    ...RESPOSTAS,
+    '/api/precos': { tabela: 'isto nao e uma lista', suspeitas: [] },
+    '/api/atalho': { mesa: false },
+    '/api/alarmes': { alarmes: [] },
+    '/api/atualizacao': { repo: null, instalada: {}, disponivel: { ok: false, mensagem: '-' } },
+  });
+
+  ctx.location = { href:'http://x/#/sobre', hash:'#/sobre', reload() {} };
+  new vm.Script(scripts[0], { filename:'painel.js' }).runInNewContext(ctx);
+  await new Promise((r) => setTimeout(r, 200));
+
+  const texto = doc.querySelector('#tela')?.textContent || '';
+  assert.match(texto, /não abriu|não abriu/i,
+    'o erro tinha que aparecer na tela em vez de sumir');
+});
